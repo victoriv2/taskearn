@@ -256,6 +256,9 @@ function renderOverviewStats() {
 // Live activity feed of auto-verified completions
 function renderRecentActivity() {
   const completions = window.TaskEarnDB.getSubmissions();
+  const allUsers = window.TaskEarnDB.getUsers();
+  const userMap = {};
+  allUsers.forEach(u => { userMap[u.id] = u; });
   const tbody = document.getElementById('admRecentActivityTableBody');
 
   if (completions.length === 0) {
@@ -269,20 +272,30 @@ function renderRecentActivity() {
     return;
   }
 
-  tbody.innerHTML = completions.slice(0, 10).map(c => `
-    <tr>
-      <td>${new Date(c.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-      <td>
-        <strong>${escapeHtml(c.userName)}</strong>
-        <div style="font-size: 0.78rem; color: var(--text-muted);">User ID: ${c.userId}</div>
-      </td>
-      <td><strong>${escapeHtml(c.taskTitle)}</strong></td>
-      <td><span class="badge badge-approved">+${c.points} PTS</span></td>
-      <td>
-        <span class="badge badge-active">Auto Click & Dwell</span>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = completions.slice(0, 10).map(c => {
+    const uObj = userMap[c.userId];
+    return `
+      <tr>
+        <td>${new Date(c.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 28px; height: 28px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${c.userId}')">
+              ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (c.userName ? c.userName[0].toUpperCase() : 'U')}
+            </div>
+            <div>
+              <strong style="cursor: pointer;" onclick="openUserDrawer('${c.userId}')">${escapeHtml(c.userName)}</strong>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">User ID: ${c.userId}</div>
+            </div>
+          </div>
+        </td>
+        <td><strong>${escapeHtml(c.taskTitle)}</strong></td>
+        <td><span class="badge badge-approved">+${c.points} PTS</span></td>
+        <td>
+          <span class="badge badge-active">Auto Click & Dwell</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function renderAdminUsers() {
@@ -326,11 +339,18 @@ function renderAdminUsers() {
   tbody.innerHTML = filtered.map(u => `
     <tr>
       <td>
-        <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${u.id}')">
-          ${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}
-          ${u.username ? `<span style="font-weight: 500; font-size: 0.8rem; color: var(--primary-blue); margin-left: 4px;">@${escapeHtml(u.username)}</span>` : ''}
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem; border: 1px solid var(--border-color); cursor: pointer;" onclick="openUserDrawer('${u.id}')">
+            ${u.avatar ? `<img src="${u.avatar}" alt="${escapeHtml(u.firstName)}" style="width: 100%; height: 100%; object-fit: cover;">` : (u.firstName ? u.firstName[0].toUpperCase() : 'U')}
+          </div>
+          <div>
+            <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${u.id}')">
+              ${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}
+              ${u.username ? `<span style="font-weight: 500; font-size: 0.8rem; color: var(--primary-blue); margin-left: 4px;">@${escapeHtml(u.username)}</span>` : ''}
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Joined ${new Date(u.createdAt).toLocaleDateString()}</div>
+          </div>
         </div>
-        <div style="font-size: 0.78rem; color: var(--text-muted);">Joined ${new Date(u.createdAt).toLocaleDateString()}</div>
       </td>
       <td>
         <div>${escapeHtml(u.email)}</div>
@@ -374,15 +394,22 @@ function openUserDrawer(userId) {
   const drawerContent = document.getElementById('drawerContent');
   drawerContent.innerHTML = `
     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
-      <div style="width: 50px; height: 50px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 700;">
-        ${user.firstName[0]}
+      <div style="width: 58px; height: 58px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; overflow: hidden; flex-shrink: 0; border: 2px solid var(--border-color);">
+        ${user.avatar ? `<img src="${user.avatar}" alt="${escapeHtml(user.firstName)}" style="width: 100%; height: 100%; object-fit: cover;">` : (user.firstName ? user.firstName[0].toUpperCase() : 'U')}
       </div>
-      <div>
-        <h4 style="font-size: 1.1rem; font-weight: 700;">
+      <div style="flex: 1; min-width: 0;">
+        <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 2px;">
           ${escapeHtml(user.firstName)} ${escapeHtml(user.lastName)}
           ${user.username ? `<span style="font-size: 0.85rem; font-weight: 500; color: var(--primary-blue); margin-left: 6px;">@${escapeHtml(user.username)}</span>` : ''}
         </h4>
         <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(user.email)} &bull; ${escapeHtml(user.phone)}</div>
+        ${user.avatar ? `
+          <div style="margin-top: 6px;">
+            <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.72rem; color: #dc2626; border: 1px solid #fecaca; background: #fff;" onclick="handleAdminRemoveUserAvatar('${user.id}')">
+              Remove User Photo
+            </button>
+          </div>
+        ` : ''}
       </div>
     </div>
 
@@ -428,6 +455,17 @@ function openUserDrawer(userId) {
         <input type="number" id="drawerAdjustPointsInput" placeholder="+100 or -50" style="flex: 1;">
         <button class="btn btn-secondary btn-sm" onclick="handleDrawerPointsAdjustment('${user.id}')">Apply</button>
       </div>
+    </div>
+
+    <!-- Reset User Password -->
+    <div class="card" style="padding: 14px; margin-bottom: 16px;">
+      <h5 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">Reset User Password</h5>
+      <div id="drawerPasswordAlert" style="display: none; margin-bottom: 8px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="drawerNewUserPassword" placeholder="Enter new password" style="flex: 1; font-size: 0.82rem; padding: 6px 8px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="handleAdminResetUserPassword('${user.id}')">Set Password</button>
+      </div>
+      <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">Must have min 6 characters with upper, lower, number, and symbol.</div>
     </div>
 
     <!-- Edit User Information -->
@@ -492,6 +530,50 @@ function openUserDrawer(userId) {
   document.getElementById('userDrawer').classList.add('open');
 }
 
+function handleAdminRemoveUserAvatar(userId) {
+  if (!confirm('Are you sure you want to remove this user\'s profile picture?')) return;
+  window.TaskEarnDB.updateUser(userId, { avatar: '' });
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    window.TaskEarnDB.pushToCloud();
+  }
+  openUserDrawer(userId);
+  renderAdminUsers();
+}
+
+function handleAdminResetUserPassword(userId) {
+  const input = document.getElementById('drawerNewUserPassword');
+  const newPass = (input?.value || '').trim();
+  const alertEl = document.getElementById('drawerPasswordAlert');
+  if (!newPass) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Please enter a new password for the user.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  try {
+    window.TaskEarnDB.updateUser(userId, { password: newPass });
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      window.TaskEarnDB.pushToCloud();
+    }
+    if (alertEl) {
+      alertEl.className = 'alert alert-success';
+      alertEl.textContent = 'User password reset successfully and saved to cloud.';
+      alertEl.style.display = 'block';
+    }
+    if (input) input.value = '';
+    setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 3500);
+  } catch (err) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = err.message;
+      alertEl.style.display = 'block';
+    }
+  }
+}
+
 function handleAdminSaveUserDetails(userId) {
   const firstName = (document.getElementById('drawerEditFirstName')?.value || '').trim();
   const lastName = (document.getElementById('drawerEditLastName')?.value || '').trim();
@@ -525,6 +607,9 @@ function handleAdminSaveUserDetails(userId) {
 
   try {
     window.TaskEarnDB.updateUser(userId, updates);
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      window.TaskEarnDB.pushToCloud();
+    }
     openUserDrawer(userId);
     renderAdminUsers();
     const updatedAlert = document.getElementById('drawerEditAlert');
@@ -532,6 +617,7 @@ function handleAdminSaveUserDetails(userId) {
       updatedAlert.className = 'alert alert-success';
       updatedAlert.textContent = 'User details and bank info updated successfully.';
       updatedAlert.style.display = 'block';
+      setTimeout(() => { if (updatedAlert) updatedAlert.style.display = 'none'; }, 3500);
     }
   } catch (err) {
     if (alertEl) {
@@ -546,8 +632,12 @@ function handleAdminSaveUserDetails(userId) {
 
 function handleToggleUserVerification(userId, newVerifiedState) {
   window.TaskEarnDB.setVerificationStatus(userId, newVerifiedState);
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    window.TaskEarnDB.pushToCloud();
+  }
   openUserDrawer(userId);
   renderAdminUsers();
+
   renderOverviewStats();
 }
 
@@ -809,6 +899,9 @@ function handleSaveFinancialSettings(event) {
   if (adminEmailInput) updates.adminEmail = adminEmailInput;
 
   window.TaskEarnDB.updateSettings(updates);
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    window.TaskEarnDB.pushToCloud();
+  }
 
   alertEl.className = 'alert alert-success';
   alertEl.textContent = 'Settings and administrative contact info updated successfully!';
@@ -820,10 +913,69 @@ function handleSaveFinancialSettings(event) {
   renderWithdrawalsQueue();
 }
 
+function handleAdminPasswordChange(event) {
+  event.preventDefault();
+  const currentPass = document.getElementById('adminCurrentPass').value;
+  const newPass = document.getElementById('adminNewPass').value;
+  const confirmPass = document.getElementById('adminConfirmPass').value;
+  const alertEl = document.getElementById('adminPasswordAlert');
+
+  const settings = window.TaskEarnDB.getSettings();
+  const validPassword = settings.adminPassword || 'admin123';
+
+  if (currentPass !== validPassword) {
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = 'Current administrator password is incorrect. Please try again.';
+    alertEl.style.display = 'block';
+    return;
+  }
+
+  if (newPass === currentPass) {
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = 'New admin password cannot be identical to your current password.';
+    alertEl.style.display = 'block';
+    return;
+  }
+
+  if (newPass !== confirmPass) {
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = 'New passwords do not match. Please re-enter carefully.';
+    alertEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    window.TaskEarnDB.validatePassword(newPass);
+
+    window.TaskEarnDB.updateSettings({ adminPassword: newPass });
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      window.TaskEarnDB.pushToCloud();
+    }
+
+    alertEl.className = 'alert alert-success';
+    alertEl.textContent = 'Administrator password changed successfully and saved to cloud!';
+    alertEl.style.display = 'block';
+
+    document.getElementById('adminPasswordForm').reset();
+    if (window.checkPasswordCriteria) {
+      window.checkPasswordCriteria('', 'adminNewPassCriteria');
+    }
+    setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 4000);
+  } catch (err) {
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = err.message;
+    alertEl.style.display = 'block';
+  }
+}
+
 // =================== PAY-IN RECORDS (VERIFICATION REVENUE) ===================
 
 function renderPayInRecords() {
   const payments = window.TaskEarnDB.getPayments();
+  const allUsers = window.TaskEarnDB.getUsers();
+  const userMap = {};
+  allUsers.forEach(u => { userMap[u.id] = u; });
+
   const searchInput = document.getElementById('admPayInSearchInput');
   const query = (searchInput?.value || '').trim().toLowerCase();
 
@@ -858,44 +1010,58 @@ function renderPayInRecords() {
     return;
   }
 
-  tbody.innerHTML = filtered.map(p => `
-    <tr>
-      <td style="white-space: nowrap;">
-        <div style="font-weight: 600;">${new Date(p.createdAt).toLocaleDateString()}</div>
-        <div style="font-size: 0.76rem; color: var(--text-muted);">${new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-      </td>
-      <td>
-        <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
-          ${escapeHtml(p.userName || 'User')}
-        </div>
-        <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(p.userEmail || '')}</div>
-      </td>
-      <td>
-        <strong style="color: var(--primary-green-dark); font-size: 0.95rem;">
-          ₦${Number(p.amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-        </strong>
-      </td>
-      <td>
-        <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">
-          ${escapeHtml(p.gateway || 'Paystack')}
-        </span>
-      </td>
-      <td>
-        <span style="font-family: monospace; font-size: 0.8rem; background-color: var(--bg-subtle); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">
-          ${escapeHtml(p.reference || 'N/A')}
-        </span>
-      </td>
-      <td>
-        <span class="badge ${p.status === 'successful' ? 'badge-approved' : 'badge-pending'}">
-          ${p.status.toUpperCase()}
-        </span>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = filtered.map(p => {
+    const uObj = userMap[p.userId];
+    return `
+      <tr>
+        <td style="white-space: nowrap;">
+          <div style="font-weight: 600;">${new Date(p.createdAt).toLocaleDateString()}</div>
+          <div style="font-size: 0.76rem; color: var(--text-muted);">${new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        </td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
+              ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (p.userName ? p.userName[0].toUpperCase() : 'U')}
+            </div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
+                ${escapeHtml(p.userName || 'User')}
+              </div>
+              <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(p.userEmail || '')}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <strong style="color: var(--primary-green-dark); font-size: 0.95rem;">
+            ₦${Number(p.amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+          </strong>
+        </td>
+        <td>
+          <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">
+            ${escapeHtml(p.gateway || 'Paystack')}
+          </span>
+        </td>
+        <td>
+          <span style="font-family: monospace; font-size: 0.8rem; background-color: var(--bg-subtle); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">
+            ${escapeHtml(p.reference || 'N/A')}
+          </span>
+        </td>
+        <td>
+          <span class="badge ${p.status === 'successful' ? 'badge-approved' : 'badge-pending'}">
+            ${p.status.toUpperCase()}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function renderWithdrawalsQueue() {
   const withdrawals = window.TaskEarnDB.getWithdrawals();
+  const allUsers = window.TaskEarnDB.getUsers();
+  const userMap = {};
+  allUsers.forEach(u => { userMap[u.id] = u; });
+
   const pending = withdrawals.filter(w => w.status === 'pending');
   const completed = withdrawals.filter(w => w.status !== 'pending');
 
@@ -911,31 +1077,41 @@ function renderWithdrawalsQueue() {
       </tr>
     `;
   } else {
-    pendingBody.innerHTML = pending.map(w => `
-      <tr>
-        <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
-        <td>
-          <strong>${escapeHtml(w.userName)}</strong>
-          <div style="font-size: 0.78rem; color: var(--text-muted);">User ID: ${w.userId}</div>
-        </td>
-        <td><strong>${w.points.toLocaleString()} PTS</strong></td>
-        <td><strong style="color: var(--primary-green-dark); font-size: 1.05rem;">₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
-        <td>
-          <div style="font-weight: 700;">${escapeHtml(w.bankName)}</div>
-          <div style="font-size: 0.85rem; letter-spacing: 0.04em;">${escapeHtml(w.accountNumber)} &bull; ${escapeHtml(w.accountName)}</div>
-        </td>
-        <td>
-          <div style="display: flex; gap: 6px;">
-            <button class="btn btn-primary btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'approved')">
-              Approve Payout
-            </button>
-            <button class="btn btn-danger btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'declined')">
-              Decline & Refund
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
+    pendingBody.innerHTML = pending.map(w => {
+      const uObj = userMap[w.userId];
+      return `
+        <tr>
+          <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${w.userId}')">
+                ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (w.userName ? w.userName[0].toUpperCase() : 'U')}
+              </div>
+              <div>
+                <strong style="cursor: pointer;" onclick="openUserDrawer('${w.userId}')">${escapeHtml(w.userName)}</strong>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">User ID: ${w.userId}</div>
+              </div>
+            </div>
+          </td>
+          <td><strong>${w.points.toLocaleString()} PTS</strong></td>
+          <td><strong style="color: var(--primary-green-dark); font-size: 1.05rem;">₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
+          <td>
+            <div style="font-weight: 700;">${escapeHtml(w.bankName)}</div>
+            <div style="font-size: 0.85rem; letter-spacing: 0.04em;">${escapeHtml(w.accountNumber)} &bull; ${escapeHtml(w.accountName)}</div>
+          </td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-primary btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'approved')">
+                Approve Payout
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'declined')">
+                Decline & Refund
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
 
   const completedBody = document.getElementById('admCompletedWithdrawalsBody');
@@ -975,6 +1151,9 @@ function handleReviewWithdrawal(withdrawalId, status) {
     reason = prompt('Reason for declining withdrawal (will be shown to user and points refunded):') || 'Incorrect bank details.';
   }
   window.TaskEarnDB.reviewWithdrawal(withdrawalId, status, reason);
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    window.TaskEarnDB.pushToCloud();
+  }
   renderWithdrawalsQueue();
   renderOverviewStats();
 }
@@ -1001,9 +1180,14 @@ function renderAdminConversationList() {
   container.innerHTML = chatUsers.map(u => {
     const isSelected = selectedUserForChat && selectedUserForChat.id === u.id;
     return `
-      <div style="padding: 10px 12px; border-radius: var(--radius-md); background-color: ${isSelected ? 'var(--primary-green-light)' : 'var(--bg-subtle)'}; cursor: pointer;" onclick="selectUserForAdminChat('${u.id}')">
-        <strong style="font-size: 0.9rem; color: var(--text-main);">${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</strong>
-        <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(u.email)}</div>
+      <div style="padding: 10px 12px; border-radius: var(--radius-md); background-color: ${isSelected ? 'var(--primary-green-light)' : 'var(--bg-subtle)'}; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="selectUserForAdminChat('${u.id}')">
+        <div style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
+          ${u.avatar ? `<img src="${u.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (u.firstName ? u.firstName[0].toUpperCase() : 'U')}
+        </div>
+        <div style="min-width: 0; flex: 1;">
+          <strong style="font-size: 0.9rem; color: var(--text-main); display: block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</strong>
+          <div style="font-size: 0.78rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(u.email)}</div>
+        </div>
       </div>
     `;
   }).join('');
@@ -1017,6 +1201,16 @@ function renderAdminConversationList() {
 function selectUserForAdminChat(userId) {
   selectedUserForChat = window.TaskEarnDB.getUserById(userId);
   if (!selectedUserForChat) return;
+
+  const headerAvatar = document.getElementById('admChatCurrentUserAvatar');
+  if (headerAvatar) {
+    headerAvatar.style.display = 'flex';
+    if (selectedUserForChat.avatar) {
+      headerAvatar.innerHTML = `<img src="${selectedUserForChat.avatar}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    } else {
+      headerAvatar.textContent = (selectedUserForChat.firstName ? selectedUserForChat.firstName[0] : 'U').toUpperCase();
+    }
+  }
 
   document.getElementById('admChatCurrentUserName').textContent = `${selectedUserForChat.firstName} ${selectedUserForChat.lastName}`;
   document.getElementById('admChatCurrentUserEmail').textContent = `${selectedUserForChat.email} • ${selectedUserForChat.phone}`;
@@ -1198,3 +1392,9 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+window.handleAdminPasswordChange = handleAdminPasswordChange;
+window.handleAdminRemoveUserAvatar = handleAdminRemoveUserAvatar;
+window.handleAdminResetUserPassword = handleAdminResetUserPassword;
+window.handleAdminSaveUserDetails = handleAdminSaveUserDetails;
+

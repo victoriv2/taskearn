@@ -56,7 +56,30 @@ function initPasswordToggleIcons() {
   });
 }
 
+function checkPasswordCriteria(password, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const val = password || '';
+  const rules = {
+    length: val.length >= 6,
+    capital: /[A-Z]/.test(val),
+    lower: /[a-z]/.test(val),
+    number: /[0-9]/.test(val),
+    symbol: /[^A-Za-z0-9]/.test(val)
+  };
+
+  for (const [rule, isMet] of Object.entries(rules)) {
+    const item = container.querySelector(`[data-rule="${rule}"]`);
+    if (item) {
+      item.classList.toggle('met', isMet);
+    }
+  }
+}
+
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.initPasswordToggleIcons = initPasswordToggleIcons;
+window.checkPasswordCriteria = checkPasswordCriteria;
 
 document.addEventListener('DOMContentLoaded', initPasswordToggleIcons);
+

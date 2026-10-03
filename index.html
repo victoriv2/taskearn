@@ -646,15 +646,20 @@
 
             <form id="profileForm" onsubmit="handleProfileUpdate(event)">
               <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-                <div id="profileAvatarDisplay" style="width: 60px; height: 60px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; overflow: hidden;">
+                <div id="profileAvatarDisplay" style="width: 60px; height: 60px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; overflow: hidden; flex-shrink: 0;">
                   U
                 </div>
                 <div>
-                  <label class="btn btn-secondary btn-sm" style="cursor: pointer;">
-                    Change Photo
-                    <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" onchange="handleAvatarUpload(event)">
-                  </label>
-                  <div class="form-helper">PNG, JPG up to 2MB</div>
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin-bottom: 0;">
+                      Change Photo
+                      <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" onchange="handleAvatarUpload(event)">
+                    </label>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnRemoveAvatar" onclick="handleRemoveAvatar()" style="display: none; color: #dc2626; border-color: #fecaca;">
+                      Remove Photo
+                    </button>
+                  </div>
+                  <div class="form-helper" style="margin-top: 4px;">PNG, JPG up to 2MB</div>
                 </div>
               </div>
 
@@ -697,6 +702,7 @@
           <!-- Change Password -->
           <div class="card">
             <h3 class="card-title" style="margin-bottom: 16px;">Security & Password</h3>
+            <div id="passwordAlert" style="display: none; margin-bottom: 16px;"></div>
             <form id="passwordForm" onsubmit="handlePasswordChange(event)">
               <div class="form-group">
                 <label class="form-label" for="currentPass">Current Password</label>
@@ -735,6 +741,13 @@
                       <span>At least 1 symbol (!@#$%^&* etc.)</span>
                     </div>
                   </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="confirmNewPass">Confirm New Password</label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="confirmNewPass" required minlength="6" placeholder="Confirm new password">
+                  <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('confirmNewPass', this)"></button>
                 </div>
               </div>
               <button type="submit" class="btn btn-secondary">

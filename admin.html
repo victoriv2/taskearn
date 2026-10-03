@@ -460,6 +460,76 @@
             </form>
           </div>
 
+          <!-- Admin Security & Password Card -->
+          <div class="card" style="border-left: 4px solid var(--primary-blue-dark); margin-top: 24px;">
+            <div class="card-header">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
+                <h3 class="card-title" style="margin-bottom: 0;">Admin Security & Password</h3>
+                <span class="badge badge-active">Master Access</span>
+              </div>
+            </div>
+
+            <div id="adminPasswordAlert" style="display: none; margin-bottom: 16px;"></div>
+
+            <form id="adminPasswordForm" onsubmit="handleAdminPasswordChange(event)">
+              <div class="form-group">
+                <label class="form-label" for="adminCurrentPass">Current Admin Password</label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="adminCurrentPass" required placeholder="Enter current admin password">
+                  <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('adminCurrentPass', this)"></button>
+                </div>
+              </div>
+
+              <div class="grid-responsive-2">
+                <div class="form-group">
+                  <label class="form-label" for="adminNewPass">New Admin Password</label>
+                  <div class="password-input-wrapper">
+                    <input type="password" id="adminNewPass" required minlength="6" placeholder="At least 6 characters" oninput="checkPasswordCriteria(this.value, 'adminNewPassCriteria')">
+                    <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('adminNewPass', this)"></button>
+                  </div>
+                  <div class="password-criteria-box" id="adminNewPassCriteria">
+                    <div class="password-criteria-title">Password must include:</div>
+                    <div class="password-criteria-grid">
+                      <div class="password-criteria-item" data-rule="length">
+                        <span class="password-criteria-dot"></span>
+                        <span>At least 6 characters</span>
+                      </div>
+                      <div class="password-criteria-item" data-rule="capital">
+                        <span class="password-criteria-dot"></span>
+                        <span>At least 1 capital letter (A-Z)</span>
+                      </div>
+                      <div class="password-criteria-item" data-rule="lower">
+                        <span class="password-criteria-dot"></span>
+                        <span>Lowercase letters (a-z)</span>
+                      </div>
+                      <div class="password-criteria-item" data-rule="number">
+                        <span class="password-criteria-dot"></span>
+                        <span>At least 1 number (0-9)</span>
+                      </div>
+                      <div class="password-criteria-item" data-rule="symbol">
+                        <span class="password-criteria-dot"></span>
+                        <span>At least 1 symbol (!@#$%^&* etc.)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="adminConfirmPass">Confirm New Admin Password</label>
+                  <div class="password-input-wrapper">
+                    <input type="password" id="adminConfirmPass" required minlength="6" placeholder="Confirm new admin password">
+                    <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('adminConfirmPass', this)"></button>
+                  </div>
+                  <div class="form-helper">Re-enter your new administrator password.</div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-secondary" style="margin-top: 10px;">
+                Update Admin Password
+              </button>
+            </form>
+          </div>
+
           <!-- Pay-In Records (Account Verification Fees Log) -->
           <div class="card" style="border-left: 4px solid var(--primary-green);">
             <div class="card-header">
@@ -585,10 +655,12 @@
 
             <div class="inbox-chat-panel chat-container" style="margin-bottom: 0;">
               <div class="chat-header">
-                <div style="display: flex; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
                   <button type="button" class="inbox-back-btn" onclick="backToConversationList()">
                     &larr; Back
                   </button>
+                  <div id="admChatCurrentUserAvatar" style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: none; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
+                  </div>
                   <div>
                     <strong id="admChatCurrentUserName" style="font-size: 0.95rem;">Select a user to chat</strong>
                     <div style="font-size: 0.76rem; color: var(--text-muted);" id="admChatCurrentUserEmail"></div>

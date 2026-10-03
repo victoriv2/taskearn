@@ -1265,10 +1265,14 @@ function loadProfileDetails() {
   document.getElementById('userStatusBadge').textContent = `${activeUser.status.toUpperCase()} MEMBER`;
 
   const avatarDisplay = document.getElementById('profileAvatarDisplay');
+  const removeBtn = document.getElementById('btnRemoveAvatar');
+
   if (activeUser.avatar) {
     avatarDisplay.innerHTML = `<img src="${activeUser.avatar}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    if (removeBtn) removeBtn.style.display = 'inline-block';
   } else {
     avatarDisplay.textContent = (activeUser.firstName[0] || 'U').toUpperCase();
+    if (removeBtn) removeBtn.style.display = 'none';
   }
 }
 
@@ -1278,12 +1282,44 @@ async function handleAvatarUpload(event) {
 
   const compressed = await compressImage(file, 300, 300, 0.8);
   if (compressed) {
-    window.TaskEarnDB.updateUser(activeUser.id, { avatar: compressed });
+    const updated = window.TaskEarnDB.updateUser(activeUser.id, { avatar: compressed });
+    activeUser = updated;
     loadProfileDetails();
     updateWalletHeader();
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
       window.TaskEarnDB.pushToCloud();
     }
+    const alertEl = document.getElementById('profileAlert');
+    if (alertEl) {
+      alertEl.className = 'alert alert-success';
+      alertEl.textContent = 'Profile picture updated successfully!';
+      alertEl.style.display = 'block';
+      setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 3000);
+    }
+  }
+}
+
+function handleRemoveAvatar() {
+  if (!activeUser || !activeUser.avatar) return;
+  if (!confirm('Are you sure you want to remove your profile picture?')) return;
+
+  const updated = window.TaskEarnDB.updateUser(activeUser.id, { avatar: '' });
+  activeUser = updated;
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    window.TaskEarnDB.pushToCloud();
+  }
+  loadProfileDetails();
+  updateWalletHeader();
+
+  const fileInput = document.getElementById('avatarFileInput');
+  if (fileInput) fileInput.value = '';
+
+  const alertEl = document.getElementById('profileAlert');
+  if (alertEl) {
+    alertEl.className = 'alert alert-success';
+    alertEl.textContent = 'Profile picture removed successfully.';
+    alertEl.style.display = 'block';
+    setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 3000);
   }
 }
 
@@ -1307,11 +1343,17 @@ function handleProfileUpdate(event) {
   try {
     const updated = window.TaskEarnDB.updateUser(activeUser.id, { firstName, lastName, username, email, phone });
     activeUser = updated;
+
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      window.TaskEarnDB.pushToCloud();
+    }
+
     alertEl.className = 'alert alert-success';
     alertEl.textContent = 'Profile updated successfully!';
     alertEl.style.display = 'block';
     loadProfileDetails();
     updateWalletHeader();
+    setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 3500);
   } catch (err) {
     alertEl.className = 'alert alert-error';
     alertEl.textContent = err.message;
@@ -1323,27 +1365,56 @@ function handlePasswordChange(event) {
   event.preventDefault();
   const currentPass = document.getElementById('currentPass').value;
   const newPass = document.getElementById('newPass').value;
-  const alertEl = document.getElementById('profileAlert');
+  const confirmPass = document.getElementById('confirmNewPass')?.value;
+  const alertEl = document.getElementById('passwordAlert') || document.getElementById('profileAlert');
 
   if (activeUser.password !== currentPass) {
     alertEl.className = 'alert alert-error';
-    alertEl.textContent = 'Current password is incorrect.';
+    alertEl.textContent = 'Current password is incorrect. Please re-check and try again.';
+    alertEl.style.display = 'block';
+    return;
+  }
+
+  if (newPass === currentPass) {
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = 'New password cannot be the same as your current password.';
+    alertEl.style.display = 'block';
+    return;
+  }
+
+  if (confirmPass !== undefined && newPass !== confirmPass) {
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = 'New passwords do not match. Please confirm your new password.';
     alertEl.style.display = 'block';
     return;
   }
 
   try {
     window.TaskEarnDB.updateUser(activeUser.id, { password: newPass });
+    activeUser = window.TaskEarnDB.getCurrentUser();
+
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      window.TaskEarnDB.pushToCloud();
+    }
+
     alertEl.className = 'alert alert-success';
-    alertEl.textContent = 'Password changed successfully.';
+    alertEl.textContent = 'Password changed successfully and updated in your account.';
     alertEl.style.display = 'block';
+
     document.getElementById('passwordForm').reset();
+    if (window.checkPasswordCriteria) {
+      window.checkPasswordCriteria('', 'newPassCriteria');
+    }
+
+    setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 4000);
   } catch (err) {
     alertEl.className = 'alert alert-error';
     alertEl.textContent = err.message;
     alertEl.style.display = 'block';
   }
 }
+
+window.handleRemoveAvatar = handleRemoveAvatar;
 
 function escapeHtml(text) {
   if (!text) return '';
