@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskEarn - Complete Tasks & Earn Real Money</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body>
+
+  <!-- Auth Screen (Shown when logged out) -->
+  <div id="authScreen" class="auth-container" style="display: none;">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <img src="logo/logo.png" alt="TaskEarn Logo" onerror="this.style.display='none'">
+        <h1 class="brand-logo" style="justify-content: center; font-size: 1.6rem;">
+          Task<span class="brand-highlight">Earn</span>
+        </h1>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+          Complete Tasks &bull; Watch Videos &bull; Earn Real Money
+        </p>
+      </div>
+
+      <div id="authAlert" style="display: none;"></div>
+
+      <!-- Login Form -->
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+        <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;">Sign In to Your Account</h2>
+        <div class="form-group">
+          <label class="form-label" for="loginIdentifier">Email, Phone, or Username</label>
+          <input type="text" id="loginIdentifier" required placeholder="Enter email, phone, or username">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="loginPassword" required placeholder="••••••••">
+            <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('loginPassword', this)"></button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 20px;">
+          Sign In
+        </button>
+        <div style="text-align: center; margin-top: 16px; font-size: 0.88rem;">
+          Don't have an account? 
+          <a href="#signup" onclick="toggleAuthForm('signup'); return false;" style="font-weight: 700;">Create Account</a>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="signupForm" style="display: none;" onsubmit="handleSignupSubmit(event)">
+        <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px;">Create a Free Account</h2>
+        <div class="grid-responsive-2">
+          <div class="form-group">
+            <label class="form-label" for="regFirstName">First Name</label>
+            <input type="text" id="regFirstName" required placeholder="John" style="text-transform: capitalize;" oninput="autoCapitalizeInput(this)">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regLastName">Last Name</label>
+            <input type="text" id="regLastName" required placeholder="Doe" style="text-transform: capitalize;" oninput="autoCapitalizeInput(this)">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regUsername">Username</label>
+          <input type="text" id="regUsername" required pattern="[a-z0-9-]{3,25}" placeholder="e.g. johndoe-123" autocomplete="username" oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '')">
+          <div class="form-helper">Lowercase letters, numbers, and hyphens (-) only. No capital letters or other symbols.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regPhone">Phone Number</label>
+          <input type="tel" id="regPhone" required maxlength="11" pattern="\d{11}" placeholder="08012345678" autocomplete="tel" title="Phone number must be exactly 11 digits" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)">
+          <div class="form-helper">Must be exactly 11 digits (e.g. 08012345678).</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regEmail">Email Address</label>
+          <input type="email" id="regEmail" required placeholder="name@example.com" autocomplete="email" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address with @ and . (e.g. name@example.com)">
+          <div class="form-helper">Must be a valid email with '@' and '.' (e.g. name@example.com).</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Create Password</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="regPassword" required minlength="6" placeholder="At least 6 characters" autocomplete="new-password" oninput="checkPasswordCriteria(this.value, 'regPasswordCriteria')">
+            <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('regPassword', this)"></button>
+          </div>
+          <div class="password-criteria-box" id="regPasswordCriteria">
+            <div class="password-criteria-title">Password must include:</div>
+            <div class="password-criteria-grid">
+              <div class="password-criteria-item" data-rule="length">
+                <span class="password-criteria-dot"></span>
+                <span>At least 6 characters</span>
+              </div>
+              <div class="password-criteria-item" data-rule="capital">
+                <span class="password-criteria-dot"></span>
+                <span>At least 1 capital letter (A-Z)</span>
+              </div>
+              <div class="password-criteria-item" data-rule="lower">
+                <span class="password-criteria-dot"></span>
+                <span>Lowercase letters (a-z)</span>
+              </div>
+              <div class="password-criteria-item" data-rule="number">
+                <span class="password-criteria-dot"></span>
+                <span>At least 1 number (0-9)</span>
+              </div>
+              <div class="password-criteria-item" data-rule="symbol">
+                <span class="password-criteria-dot"></span>
+                <span>At least 1 symbol (!@#$%^&* etc.)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regConfirmPassword">Retype Password</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="regConfirmPassword" required minlength="6" placeholder="Repeat your password" autocomplete="new-password">
+            <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('regConfirmPassword', this)"></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regReferralCode">Referral Username (Optional)</label>
+          <input type="text" id="regReferralCode" placeholder="e.g. inviter-username">
+          <div class="form-helper">Enter the username of the member who invited you.</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 20px;">
+          Create Free Account
+        </button>
+        <div style="text-align: center; margin-top: 16px; font-size: 0.88rem;">
+          Already have an account? 
+          <a href="#login" onclick="toggleAuthForm('login'); return false;" style="font-weight: 700;">Sign In</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Account Verification Screen (Paystack ₦100) -->
+  <div id="verifyScreen" class="auth-container" style="display: none;">
+    <div class="auth-card" style="max-width: 480px;">
+      <div class="auth-brand">
+        <img src="logo/logo.png" alt="TaskEarn" onerror="this.style.display='none'">
+        <div class="brand-logo" style="justify-content: center; font-size: 1.5rem;">
+          Task<span class="brand-highlight">Earn</span>
+        </div>
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 6px;">
+          Account Verification
+        </p>
+      </div>
+
+      <div id="verifyAlert" style="display: none;"></div>
+
+      <div class="card" style="border: 1px solid var(--border-color); background-color: var(--bg-subtle); padding: 18px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Account Status</span>
+          <span class="badge badge-pending">Verification Required</span>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Account Holder</div>
+          <div style="font-weight: 700; font-size: 1rem; color: var(--text-main);" id="verifyUserName">User Name</div>
+          <div style="font-size: 0.82rem; color: var(--text-muted);" id="verifyUserEmail">user@example.com</div>
+        </div>
+
+        <div style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600; font-size: 0.9rem;">One-Time Verification Fee:</span>
+            <span style="font-weight: 800; font-size: 1.3rem; color: var(--primary-blue);" id="verifyFeeDisplay">₦100.00</span>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+            To maintain an authentic platform and prevent bot abuse, a one-time ₦100 account verification fee via Paystack is required to activate tasks and withdrawals.
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary btn-block" id="payVerifyBtn" onclick="initiatePaystackVerification()" style="font-size: 1rem; padding: 12px 18px; font-weight: 700;">
+        Pay ₦100 via Paystack
+      </button>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; font-size: 0.78rem; color: var(--text-muted);">
+        <span id="iconVerifyLock"></span> Secured by Paystack (Card, Transfer, USSD)
+      </div>
+
+      <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="handleUserLogout()">
+          Sign Out & Complete Later
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Authenticated User Application Wrapper -->
+  <div id="appScreen" class="app-wrapper" style="display: none;">
+    
+    <!-- ================= DESKTOP SIDEBAR ================= -->
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <img src="logo/logo.png" alt="TaskEarn" onerror="this.style.display='none'">
+        <div class="brand-logo">Task<span class="brand-highlight">Earn</span></div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-link active" onclick="switchUserTab('tasks')" id="dTabTasks">
+          <span id="dIconTasks"></span> Tasks
+        </div>
+        <div class="sidebar-link" onclick="switchUserTab('withdrawals')" id="dTabWithdraw">
+          <span id="dIconWithdraw"></span> Withdraw
+        </div>
+        <div class="sidebar-link" onclick="switchUserTab('messages')" id="dTabChat">
+          <span id="dIconChat"></span> Messages
+        </div>
+        <div class="sidebar-link" onclick="switchUserTab('referrals')" id="dTabReferral">
+          <span id="dIconReferral"></span> Referrals
+        </div>
+        <div class="sidebar-link" onclick="switchUserTab('more')" id="dTabMore">
+          <span id="dIconMore"></span> More
+        </div>
+      </nav>
+
+      <!-- Sidebar User Profile Block -->
+      <div class="sidebar-user-block">
+        <div class="sidebar-user-info">
+          <div class="sidebar-avatar" id="sidebarUserAvatar">U</div>
+          <div style="overflow: hidden;">
+            <div style="font-weight: 700; font-size: 0.88rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;" id="sidebarUserName">User</div>
+            <div style="font-size: 0.75rem; color: var(--primary-green-dark); font-weight: 700;" id="sidebarUserPoints">0 PTS</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" style="width: 100%; font-size: 0.78rem;" onclick="handleUserLogout()">
+          <span id="dIconLogout"></span> Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- ================= MAIN CONTENT COLUMN ================= -->
+    <div class="app-main">
+      
+      <!-- Top App Header -->
+      <header class="app-header">
+        <div class="brand-logo">
+          <img src="logo/logo.png" alt="TaskEarn" onerror="this.style.display='none'">
+          <span>Task<span class="brand-highlight">Earn</span></span>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
+          <div class="wallet-pill" title="Points Balance & Naira Equivalent">
+            <span id="userWalletPoints">0 PTS</span>
+            <span style="opacity: 0.5;">|</span>
+            <span id="userWalletNaira">₦0.00</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="content-container">
+
+        <!-- ================= TAB 1: TASKS ================= -->
+        <section id="tab-tasks" class="tab-panel active">
+          
+          <!-- Balance Summary Banner -->
+          <div class="card" style="background: linear-gradient(135deg, var(--primary-blue), #1e3a8a); color: #ffffff; border: none; padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+              <div>
+                <div style="font-size: 0.82rem; opacity: 0.85; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Available Earnings</div>
+                <div style="font-size: 2.2rem; font-weight: 800; margin-top: 4px;" id="heroNairaBalance">₦0.00</div>
+                <div style="font-size: 0.92rem; opacity: 0.9; margin-top: 2px;">
+                  <strong id="heroPointsBalance">0</strong> Points Available
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="switchUserTab('withdrawals')" style="background-color: var(--primary-green); border-color: transparent;">
+                Withdraw Funds
+              </button>
+            </div>
+          </div>
+
+          <!-- Task Toolbar (Search, Filter, Sort) -->
+          <div class="toolbar">
+            <div class="search-box">
+              <span id="iconSearch"></span>
+              <input type="text" id="taskSearchInput" placeholder="Search tasks by title or platform..." oninput="renderUserTasks()">
+            </div>
+            <div class="filter-actions">
+              <select id="taskStatusFilter" onchange="renderUserTasks()">
+                <option value="all" selected>All Tasks</option>
+                <option value="available">Available (To Do)</option>
+                <option value="completed">Completed</option>
+              </select>
+              <select id="taskSortFilter" onchange="renderUserTasks()">
+                <option value="reward-desc">Highest Points</option>
+                <option value="reward-asc">Lowest Points</option>
+                <option value="newest" selected>Newest First</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Uncompleted / Available Tasks Section -->
+          <div id="availableTasksSection">
+            <div class="section-heading">
+              <span>Available Tasks to Complete</span>
+              <span class="section-subtext" id="availableTasksCount">0 available</span>
+            </div>
+            <div id="availableTasksList" class="task-list">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+          <!-- Completed Tasks Section (Cleanly Underneath) -->
+          <div id="completedTasksSection">
+            <div class="section-heading" style="margin-top: 36px; border-top: 1px solid var(--border-color); padding-top: 24px;">
+              <span>Completed Tasks</span>
+              <span class="section-subtext" id="completedTasksCount">0 completed</span>
+            </div>
+            <div id="completedTasksList" class="task-list">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ================= TAB 2: WITHDRAWALS ================= -->
+        <section id="tab-withdrawals" class="tab-panel">
+          <!-- Card 1: Bank Account Details -->
+          <div class="card" id="bankDetailsCard">
+            <div class="card-header">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
+                <h2 class="card-title" style="margin-bottom: 0;">Bank Account Details</h2>
+                <span class="badge" id="wdrBankBadge">No Account Saved</span>
+              </div>
+            </div>
+
+            <div id="bankDetailsAlert" style="display: none;"></div>
+
+            <!-- Saved Bank Display Box (Shown when user has saved bank details and not editing) -->
+            <div id="savedBankDisplayBox" style="display: none; background: var(--bg-surface-alt, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; padding: 16px; margin-bottom: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                <div>
+                  <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Saved Destination Bank</div>
+                  <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-color);" id="dispSavedBankName">Zenith Bank</div>
+                  <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-color); margin-top: 4px; font-family: monospace; letter-spacing: 1px;" id="dispSavedAccountNumber">0123456789</div>
+                  <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;" id="dispSavedAccountName">John Doe</div>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="editBankDetails()" style="display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 0.85rem;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  <span>Edit Bank Details</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Bank Details Form Wrap (Shown when inputting or editing bank details) -->
+            <div id="bankDetailsFormWrap">
+              <form id="bankDetailsForm" onsubmit="handleSaveBankDetails(event)">
+                <div class="form-group">
+                  <label class="form-label" for="wdrBankSelect">Select Nigerian Bank</label>
+                  <select id="wdrBankSelect" required data-modal-title="Select Nigerian Bank">
+                    <option value="">-- Choose Nigerian Bank --</option>
+                    <option value="9 Payment Service Bank (9PSB)">9 Payment Service Bank (9PSB)</option>
+                    <option value="AB Microfinance Bank">AB Microfinance Bank</option>
+                    <option value="Abbey Mortgage Bank">Abbey Mortgage Bank</option>
+                    <option value="Access Bank">Access Bank</option>
+                    <option value="Accion Microfinance Bank">Accion Microfinance Bank</option>
+                    <option value="Alpha Morgan Bank">Alpha Morgan Bank</option>
+                    <option value="ASO Savings and Loans">ASO Savings and Loans</option>
+                    <option value="Bank of Agriculture (BOA)">Bank of Agriculture (BOA)</option>
+                    <option value="Bank of Industry (BOI)">Bank of Industry (BOI)</option>
+                    <option value="Baobab Microfinance Bank">Baobab Microfinance Bank</option>
+                    <option value="Branch Microfinance Bank">Branch Microfinance Bank</option>
+                    <option value="Brent Mortgage Bank">Brent Mortgage Bank</option>
+                    <option value="Carbon">Carbon</option>
+                    <option value="Citibank Nigeria">Citibank Nigeria</option>
+                    <option value="Coronation Merchant Bank">Coronation Merchant Bank</option>
+                    <option value="Development Bank of Nigeria (DBN)">Development Bank of Nigeria (DBN)</option>
+                    <option value="Dot Microfinance Bank">Dot Microfinance Bank</option>
+                    <option value="Ecobank Nigeria">Ecobank Nigeria</option>
+                    <option value="Eyowo Microfinance Bank">Eyowo Microfinance Bank</option>
+                    <option value="FairMoney">FairMoney</option>
+                    <option value="FBNQuest Merchant Bank">FBNQuest Merchant Bank</option>
+                    <option value="Federal Mortgage Bank of Nigeria (FMBN)">Federal Mortgage Bank of Nigeria (FMBN)</option>
+                    <option value="Fidelity Bank">Fidelity Bank</option>
+                    <option value="First Bank of Nigeria">First Bank of Nigeria</option>
+                    <option value="First City Monument Bank (FCMB)">First City Monument Bank (FCMB)</option>
+                    <option value="Globus Bank">Globus Bank</option>
+                    <option value="Gomoney (Sterling MFB)">Gomoney (Sterling MFB)</option>
+                    <option value="Greenwich Merchant Bank">Greenwich Merchant Bank</option>
+                    <option value="Guaranty Trust Bank (GTBank)">Guaranty Trust Bank (GTBank)</option>
+                    <option value="Hope Payment Service Bank">Hope Payment Service Bank</option>
+                    <option value="Infinity Trust Mortgage Bank">Infinity Trust Mortgage Bank</option>
+                    <option value="Jaiz Bank">Jaiz Bank</option>
+                    <option value="Keystone Bank">Keystone Bank</option>
+                    <option value="Kuda">Kuda</option>
+                    <option value="LAPO Microfinance Bank">LAPO Microfinance Bank</option>
+                    <option value="LivingTrust Mortgage Bank">LivingTrust Mortgage Bank</option>
+                    <option value="Lotus Bank">Lotus Bank</option>
+                    <option value="Mintyn">Mintyn</option>
+                    <option value="MoMo PSB">MoMo PSB</option>
+                    <option value="MoneyMaster PSB">MoneyMaster PSB</option>
+                    <option value="Moniepoint">Moniepoint</option>
+                    <option value="Nigerian Export-Import Bank (NEXIM)">Nigerian Export-Import Bank (NEXIM)</option>
+                    <option value="Nova Commercial Bank">Nova Commercial Bank</option>
+                    <option value="NowNow Digital Systems (NowNow MFB)">NowNow Digital Systems (NowNow MFB)</option>
+                    <option value="NPF Microfinance Bank">NPF Microfinance Bank</option>
+                    <option value="OPay">OPay</option>
+                    <option value="Optimus Bank">Optimus Bank</option>
+                    <option value="PalmPay">PalmPay</option>
+                    <option value="Parallex Bank">Parallex Bank</option>
+                    <option value="Polaris Bank">Polaris Bank</option>
+                    <option value="PremiumTrust Bank">PremiumTrust Bank</option>
+                    <option value="Providus Bank">Providus Bank</option>
+                    <option value="ProvidusUnity Bank">ProvidusUnity Bank</option>
+                    <option value="Rand Merchant Bank Nigeria (RMB)">Rand Merchant Bank Nigeria (RMB)</option>
+                    <option value="Raven Bank (Raven MFB)">Raven Bank (Raven MFB)</option>
+                    <option value="Renmoney Microfinance Bank">Renmoney Microfinance Bank</option>
+                    <option value="Rubies Bank">Rubies Bank</option>
+                    <option value="Signature Bank">Signature Bank</option>
+                    <option value="SmartCash PSB">SmartCash PSB</option>
+                    <option value="Sparkle">Sparkle</option>
+                    <option value="Stanbic IBTC Bank">Stanbic IBTC Bank</option>
+                    <option value="Standard Chartered Bank Nigeria">Standard Chartered Bank Nigeria</option>
+                    <option value="Sterling Bank">Sterling Bank</option>
+                    <option value="Summit Bank">Summit Bank</option>
+                    <option value="SunTrust Bank">SunTrust Bank</option>
+                    <option value="TAJBank">TAJBank</option>
+                    <option value="Tatum Bank">Tatum Bank</option>
+                    <option value="The Alternative Bank">The Alternative Bank</option>
+                    <option value="Union Bank">Union Bank</option>
+                    <option value="United Bank for Africa (UBA)">United Bank for Africa (UBA)</option>
+                    <option value="VFD Microfinance Bank">VFD Microfinance Bank</option>
+                    <option value="Wema Bank">Wema Bank</option>
+                    <option value="Zenith Bank">Zenith Bank</option>
+                  </select>
+                </div>
+
+                <div class="grid-responsive-2">
+                  <div class="form-group">
+                    <label class="form-label" for="wdrAccountNumber">10-Digit Account Number</label>
+                    <input type="text" id="wdrAccountNumber" required maxlength="10" pattern="\d{10}" placeholder="0123456789" title="Account number must be exactly 10 digits" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)">
+                    <div class="form-helper">Must be exactly 10 digits (NUBAN format).</div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="wdrAccountName">Account Name</label>
+                    <input type="text" id="wdrAccountName" required placeholder="Account Holder Full Name" style="text-transform: capitalize;" oninput="this.value = this.value.replace(/(?:^|[\s-])\S/g, m => m.toUpperCase())">
+                    <div class="form-helper">As registered on your bank account.</div>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                  <button type="submit" class="btn btn-primary" id="btnSaveBankDetails" style="flex: 1;">
+                    Save Bank Details
+                  </button>
+                  <button type="button" class="btn btn-outline" id="btnCancelEditBank" onclick="cancelEditBankDetails()" style="display: none;">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Card 2: Withdraw Points -->
+          <div class="card" id="withdrawCard">
+            <div class="card-header">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
+                <h2 class="card-title" style="margin-bottom: 0;">Withdraw Points</h2>
+                <span class="badge badge-approved" id="wdrRateBadge">1 Point = ₦1.00</span>
+              </div>
+            </div>
+
+            <div id="withdrawalAlert" style="display: none;"></div>
+
+            <!-- 48-Hour Processing Notice Banner -->
+            <div class="alert" style="background-color: rgba(37, 99, 235, 0.08); border-left: 4px solid var(--primary-blue); color: var(--primary-blue-dark); margin-bottom: 20px; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <div style="font-size: 0.86rem; line-height: 1.45;">
+                <strong>Notice:</strong> Withdrawals can take <strong>up to 48 hours</strong> to be processed and credited to your bank account.
+              </div>
+            </div>
+
+            <div class="grid-stats" style="margin-bottom: 20px;">
+              <div class="stat-box">
+                <div class="stat-label">Available Points</div>
+                <div class="stat-value" id="wdrPointsAvailable">0</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Naira Value</div>
+                <div class="stat-value" id="wdrNairaAvailable">₦0.00</div>
+                <div class="stat-sub" id="wdrMinNotice">Minimum withdrawal: ₦1,000</div>
+              </div>
+            </div>
+
+            <form id="withdrawalForm" onsubmit="handleWithdrawalRequest(event)">
+              <div class="form-group">
+                <label class="form-label" for="wdrPointsInput">Points to Withdraw</label>
+                <input type="number" id="wdrPointsInput" required min="10" placeholder="Enter points amount" oninput="calculateWithdrawalNaira()">
+                <div class="form-helper" id="wdrCalculatedNaira">Estimated Payout: ₦0.00</div>
+              </div>
+
+              <!-- Payout Destination Confirmation or Prompt -->
+              <div id="wdrPayoutTargetBox" style="margin-bottom: 20px; padding: 12px 14px; border-radius: 6px; font-size: 0.88rem;"></div>
+
+              <button type="submit" class="btn btn-primary btn-block" id="btnSubmitWithdrawal" style="margin-top: 10px;">
+                Submit Withdrawal Request
+              </button>
+            </form>
+          </div>
+
+          <!-- Withdrawal History -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Withdrawal History</h3>
+            </div>
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Points</th>
+                    <th>Amount (₦)</th>
+                    <th>Bank & Account</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="userWithdrawalHistoryBody">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= TAB 3: SUPPORT & MESSAGES ================= -->
+        <section id="tab-messages" class="tab-panel">
+          <div class="chat-container">
+            <div class="chat-header">
+              <div>
+                <strong style="color: var(--text-main); font-size: 1rem;">TaskEarn Support</strong>
+                <div style="font-size: 0.78rem; color: var(--primary-green-dark); font-weight: 600;">Official Channel</div>
+              </div>
+              <span class="badge badge-approved">Online</span>
+            </div>
+
+            <!-- Messages Thread -->
+            <div class="chat-messages" id="userChatMessages">
+              <!-- Dynamically rendered bubbles -->
+            </div>
+
+            <!-- Chat Input (Text + Image Only, NO Voice) -->
+            <form class="chat-input-bar" onsubmit="handleSendUserMessage(event)">
+              <label class="chat-file-btn" title="Attach Image">
+                <span id="iconAttachImage"></span>
+                <input type="file" id="chatImageInput" accept="image/*" style="display: none;" onchange="handleChatImagePreview(event)">
+              </label>
+              <div style="flex: 1; display: flex; flex-direction: column;">
+                <div id="chatImagePreviewContainer" style="display: none; padding-bottom: 6px;">
+                  <span id="chatImagePreviewName" style="font-size: 0.75rem; color: var(--text-muted);"></span>
+                  <button type="button" onclick="clearChatImagePreview()" class="btn btn-sm" style="padding: 2px 6px; font-size: 0.7rem; color: red;">Remove</button>
+                </div>
+                <input type="text" id="chatTextInput" placeholder="Type your message here..." required autocomplete="off">
+              </div>
+              <button type="submit" class="btn btn-primary" style="padding: 10px 16px;">
+                <span id="iconSendMessage"></span> Send
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- ================= TAB 4: REFERRALS ================= -->
+        <section id="tab-referrals" class="tab-panel">
+          
+          <div class="card" style="background: linear-gradient(135deg, #15803d, #166534); color: #ffffff; border: none; padding: 24px;">
+            <div style="font-size: 0.82rem; opacity: 0.9; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Invite Friends & Earn</div>
+            <h2 style="font-size: 1.5rem; font-weight: 800; margin: 6px 0;" id="refBonusHeadline">Earn Points Per Referral</h2>
+            <p style="font-size: 0.9rem; opacity: 0.9; max-width: 600px;">
+              Share your referral code or direct invite link. Bonus points are credited to your balance when friends register.
+            </p>
+          </div>
+
+          <div class="grid-stats">
+            <div class="stat-box">
+              <div class="stat-label">Total Friends Invited</div>
+              <div class="stat-value" id="refTotalInvited">0</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Referral Points Earned</div>
+              <div class="stat-value" id="refTotalPoints">0 PTS</div>
+              <div class="stat-sub" id="refNairaEarned">₦0.00 equivalent</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom: 16px;">Your Referral Details</h3>
+            
+            <div class="form-group">
+              <label class="form-label">Your Referral Code (Your Username)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="userReferralCodeInput" readonly style="font-weight: 800; letter-spacing: 0.05em; background-color: var(--bg-subtle);">
+                <button type="button" class="btn btn-secondary" onclick="copyReferralCode()">
+                  <span id="iconCopyCode"></span> Copy Username Code
+                </button>
+              </div>
+              <div class="form-helper">Your referral code is simply your unique username.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Your Direct Invite Link</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="userReferralLinkInput" readonly style="background-color: var(--bg-subtle);">
+                <button type="button" class="btn btn-primary" onclick="copyReferralLink()">
+                  <span id="iconCopyLink"></span> Copy Link
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Referred Friends</h3>
+            </div>
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Date Joined</th>
+                    <th>Points Earned By Them</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="userReferralsTableBody">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= TAB 5: MORE / PROFILE ================= -->
+        <section id="tab-more" class="tab-panel">
+          <div class="card">
+            <div class="card-header">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
+                <h2 class="card-title" style="margin-bottom: 0;">Profile Settings</h2>
+                <span class="badge badge-active" id="userStatusBadge">Active Member</span>
+              </div>
+            </div>
+
+            <div id="profileAlert" style="display: none;"></div>
+
+            <form id="profileForm" onsubmit="handleProfileUpdate(event)">
+              <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                <div id="profileAvatarDisplay" style="width: 60px; height: 60px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; overflow: hidden;">
+                  U
+                </div>
+                <div>
+                  <label class="btn btn-secondary btn-sm" style="cursor: pointer;">
+                    Change Photo
+                    <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" onchange="handleAvatarUpload(event)">
+                  </label>
+                  <div class="form-helper">PNG, JPG up to 2MB</div>
+                </div>
+              </div>
+
+              <div class="grid-responsive-2">
+                <div class="form-group">
+                  <label class="form-label" for="profFirstName">First Name</label>
+                  <input type="text" id="profFirstName" required style="text-transform: capitalize;" oninput="autoCapitalizeInput(this)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="profLastName">Last Name</label>
+                  <input type="text" id="profLastName" required style="text-transform: capitalize;" oninput="autoCapitalizeInput(this)">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="profUsername">Username</label>
+                <input type="text" id="profUsername" required pattern="[a-z0-9-]{3,25}" placeholder="e.g. johndoe-123" oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '')">
+                <div class="form-helper">Lowercase letters, numbers, and hyphens (-) only. No capital letters or other symbols.</div>
+              </div>
+
+              <div class="grid-responsive-2">
+                <div class="form-group">
+                  <label class="form-label" for="profEmail">Email Address</label>
+                  <input type="email" id="profEmail" required placeholder="name@example.com" autocomplete="email" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" title="Please enter a valid email address with @ and . (e.g. name@example.com)">
+                  <div class="form-helper">Must contain '@' and '.' (e.g. name@example.com).</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="profPhone">Phone Number</label>
+                  <input type="tel" id="profPhone" required maxlength="11" pattern="\d{11}" placeholder="08012345678" title="Phone number must be exactly 11 digits" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)">
+                  <div class="form-helper">Must be exactly 11 digits (e.g. 08012345678).</div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary">
+                Save Profile Changes
+              </button>
+            </form>
+          </div>
+
+          <!-- Change Password -->
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom: 16px;">Security & Password</h3>
+            <form id="passwordForm" onsubmit="handlePasswordChange(event)">
+              <div class="form-group">
+                <label class="form-label" for="currentPass">Current Password</label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="currentPass" required placeholder="••••••••">
+                  <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('currentPass', this)"></button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="newPass">New Password</label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="newPass" required minlength="6" placeholder="At least 6 characters" oninput="checkPasswordCriteria(this.value, 'newPassCriteria')">
+                  <button type="button" class="password-toggle-btn" aria-label="Show password" title="Show password" onclick="togglePasswordVisibility('newPass', this)"></button>
+                </div>
+                <div class="password-criteria-box" id="newPassCriteria">
+                  <div class="password-criteria-title">Password must include:</div>
+                  <div class="password-criteria-grid">
+                    <div class="password-criteria-item" data-rule="length">
+                      <span class="password-criteria-dot"></span>
+                      <span>At least 6 characters</span>
+                    </div>
+                    <div class="password-criteria-item" data-rule="capital">
+                      <span class="password-criteria-dot"></span>
+                      <span>At least 1 capital letter (A-Z)</span>
+                    </div>
+                    <div class="password-criteria-item" data-rule="lower">
+                      <span class="password-criteria-dot"></span>
+                      <span>Lowercase letters (a-z)</span>
+                    </div>
+                    <div class="password-criteria-item" data-rule="number">
+                      <span class="password-criteria-dot"></span>
+                      <span>At least 1 number (0-9)</span>
+                    </div>
+                    <div class="password-criteria-item" data-rule="symbol">
+                      <span class="password-criteria-dot"></span>
+                      <span>At least 1 symbol (!@#$%^&* etc.)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-secondary">
+                Update Password
+              </button>
+            </form>
+          </div>
+
+          <!-- Account Sign Out -->
+          <div class="card" style="border-color: #fecaca;">
+            <h3 class="card-title" style="color: #991b1b; margin-bottom: 8px;">Account Session</h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 14px;">
+              End your active session on this device.
+            </p>
+            <button type="button" class="btn btn-danger" onclick="handleUserLogout()">
+              <span id="iconLogout"></span> Sign Out
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- ================= MOBILE BOTTOM NAVIGATION ================= -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" onclick="switchUserTab('tasks')" id="mNavTasks">
+        <span id="mIconTasks"></span>
+        <span>Tasks</span>
+      </button>
+      <button class="nav-item" onclick="switchUserTab('withdrawals')" id="mNavWithdraw">
+        <span id="mIconWithdraw"></span>
+        <span>Withdraw</span>
+      </button>
+      <button class="nav-item" onclick="switchUserTab('messages')" id="mNavMessages">
+        <span id="mIconChat"></span>
+        <span>Messages</span>
+      </button>
+      <button class="nav-item" onclick="switchUserTab('referrals')" id="mNavReferrals">
+        <span id="mIconReferral"></span>
+        <span>Referrals</span>
+      </button>
+      <button class="nav-item" onclick="switchUserTab('more')" id="mNavMore">
+        <span id="mIconMore"></span>
+        <span>More</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Task Detail Modal (Pure Click & Invisible Background Timer - NO Screenshot Uploads!) -->
+  <div id="taskModal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <span class="badge badge-active" id="modalTaskCategory">Platform</span>
+          <h3 class="card-title" id="modalTaskTitle" style="margin-top: 6px;">Task Title</h3>
+        </div>
+        <button class="modal-close" onclick="closeTaskModal()" title="Close">
+          <span id="iconCloseModal"></span>
+        </button>
+      </div>
+
+      <div style="margin-bottom: 18px;">
+        <div style="font-size: 0.95rem; font-weight: 700; color: var(--primary-green-dark); margin-bottom: 8px;" id="modalTaskReward">
+          Reward: 0 Points
+        </div>
+        <div style="font-size: 0.92rem; color: var(--text-main); line-height: 1.5; white-space: pre-line;" id="modalTaskDesc">
+          Task instructions...
+        </div>
+      </div>
+
+      <div id="modalTaskAlert" style="display: none;"></div>
+
+      <!-- Action & Automated Verification UI -->
+      <div id="taskActionSection">
+        <button type="button" id="startTaskBtn" class="btn btn-primary btn-block" style="padding: 13px 20px; font-size: 1rem;" onclick="performTaskAction()">
+          <span id="iconPerformTask"></span> Perform Task (Opens Link)
+        </button>
+      </div>
+
+      <!-- Background Verification Progress State -->
+      <div id="taskVerificationStatusBox" style="display: none; margin-top: 14px; padding: 16px; background-color: var(--bg-subtle); border-radius: var(--radius-md); text-align: center;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary-blue);" id="taskDwellHeadline">
+          Task Opened in New Tab
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;" id="taskDwellSubtext">
+          Verifying completion in background...
+        </div>
+        <div style="margin-top: 10px; width: 100%; height: 6px; background-color: var(--border-color); border-radius: var(--radius-full); overflow: hidden;">
+          <div id="taskDwellProgressBar" style="width: 0%; height: 100%; background-color: var(--primary-green); transition: width 0.3s ease;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/icons.js"></script>
+  <script src="js/modal-select.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
