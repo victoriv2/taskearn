@@ -121,7 +121,7 @@ async function handleAdminLoginSubmit(event) {
     }
     // Pull fresh admin configuration from cloud before verifying
     if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud) {
-      await window.TaskEarnDB.pullFromCloud();
+      await window.TaskEarnDB.pullFromCloud(true);
     }
     window.TaskEarnDB.loginAdmin(email, pass);
     checkAdminAuth();
@@ -530,17 +530,17 @@ function openUserDrawer(userId) {
   document.getElementById('userDrawer').classList.add('open');
 }
 
-function handleAdminRemoveUserAvatar(userId) {
+async function handleAdminRemoveUserAvatar(userId) {
   if (!confirm('Are you sure you want to remove this user\'s profile picture?')) return;
   window.TaskEarnDB.updateUser(userId, { avatar: '' });
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-    window.TaskEarnDB.pushToCloud();
+    await window.TaskEarnDB.pushToCloud();
   }
   openUserDrawer(userId);
   renderAdminUsers();
 }
 
-function handleAdminResetUserPassword(userId) {
+async function handleAdminResetUserPassword(userId) {
   const input = document.getElementById('drawerNewUserPassword');
   const newPass = (input?.value || '').trim();
   const alertEl = document.getElementById('drawerPasswordAlert');
@@ -556,7 +556,7 @@ function handleAdminResetUserPassword(userId) {
   try {
     window.TaskEarnDB.updateUser(userId, { password: newPass });
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
     if (alertEl) {
       alertEl.className = 'alert alert-success';
@@ -574,7 +574,7 @@ function handleAdminResetUserPassword(userId) {
   }
 }
 
-function handleAdminSaveUserDetails(userId) {
+async function handleAdminSaveUserDetails(userId) {
   const firstName = (document.getElementById('drawerEditFirstName')?.value || '').trim();
   const lastName = (document.getElementById('drawerEditLastName')?.value || '').trim();
   const username = (document.getElementById('drawerEditUsername')?.value || '').trim();
@@ -608,7 +608,7 @@ function handleAdminSaveUserDetails(userId) {
   try {
     window.TaskEarnDB.updateUser(userId, updates);
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
     openUserDrawer(userId);
     renderAdminUsers();
@@ -630,10 +630,10 @@ function handleAdminSaveUserDetails(userId) {
   }
 }
 
-function handleToggleUserVerification(userId, newVerifiedState) {
+async function handleToggleUserVerification(userId, newVerifiedState) {
   window.TaskEarnDB.setVerificationStatus(userId, newVerifiedState);
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-    window.TaskEarnDB.pushToCloud();
+    await window.TaskEarnDB.pushToCloud();
   }
   openUserDrawer(userId);
   renderAdminUsers();
@@ -865,7 +865,7 @@ function loadFinancialSettings() {
   }
 }
 
-function handleSaveFinancialSettings(event) {
+async function handleSaveFinancialSettings(event) {
   event.preventDefault();
   const pointRateNaira = parseFloat(document.getElementById('settingPointRate').value);
   const referralPoints = parseInt(document.getElementById('settingReferralPoints').value, 10);
@@ -875,6 +875,8 @@ function handleSaveFinancialSettings(event) {
   const adminPhoneInput = (document.getElementById('settingAdminPhone')?.value || '').trim();
   const adminEmailInput = (document.getElementById('settingAdminEmail')?.value || '').trim();
   const alertEl = document.getElementById('financialSettingsAlert');
+  const btn = event.target.querySelector('button[type="submit"]');
+  const origText = btn ? btn.textContent : '';
 
   let adminPhone = undefined;
   if (adminPhoneInput) {
@@ -898,27 +900,45 @@ function handleSaveFinancialSettings(event) {
   if (adminPhone) updates.adminPhone = adminPhone;
   if (adminEmailInput) updates.adminEmail = adminEmailInput;
 
-  window.TaskEarnDB.updateSettings(updates);
-  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-    window.TaskEarnDB.pushToCloud();
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving settings...';
+    }
+
+    window.TaskEarnDB.updateSettings(updates);
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      await window.TaskEarnDB.pushToCloud();
+    }
+
+    alertEl.className = 'alert alert-success';
+    alertEl.textContent = 'Settings and administrative contact info updated successfully and saved to cloud!';
+    alertEl.style.display = 'block';
+    setTimeout(() => alertEl.style.display = 'none', 3000);
+
+    renderOverviewStats();
+    renderPayInRecords();
+    renderWithdrawalsQueue();
+  } catch (err) {
+    alertEl.className = 'alert alert-error';
+    alertEl.textContent = err.message;
+    alertEl.style.display = 'block';
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
   }
-
-  alertEl.className = 'alert alert-success';
-  alertEl.textContent = 'Settings and administrative contact info updated successfully!';
-  alertEl.style.display = 'block';
-  setTimeout(() => alertEl.style.display = 'none', 2500);
-
-  renderOverviewStats();
-  renderPayInRecords();
-  renderWithdrawalsQueue();
 }
 
-function handleAdminPasswordChange(event) {
+async function handleAdminPasswordChange(event) {
   event.preventDefault();
   const currentPass = document.getElementById('adminCurrentPass').value;
   const newPass = document.getElementById('adminNewPass').value;
   const confirmPass = document.getElementById('adminConfirmPass').value;
   const alertEl = document.getElementById('adminPasswordAlert');
+  const btn = event.target.querySelector('button[type="submit"]');
+  const origText = btn ? btn.textContent : '';
 
   const settings = window.TaskEarnDB.getSettings();
   const validPassword = settings.adminPassword || 'admin123';
@@ -945,11 +965,16 @@ function handleAdminPasswordChange(event) {
   }
 
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Updating admin password...';
+    }
+
     window.TaskEarnDB.validatePassword(newPass);
 
     window.TaskEarnDB.updateSettings({ adminPassword: newPass });
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
 
     alertEl.className = 'alert alert-success';
@@ -965,6 +990,11 @@ function handleAdminPasswordChange(event) {
     alertEl.className = 'alert alert-error';
     alertEl.textContent = err.message;
     alertEl.style.display = 'block';
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
   }
 }
 
@@ -1145,14 +1175,14 @@ function renderWithdrawalsQueue() {
   }
 }
 
-function handleReviewWithdrawal(withdrawalId, status) {
+async function handleReviewWithdrawal(withdrawalId, status) {
   let reason = '';
   if (status === 'declined') {
     reason = prompt('Reason for declining withdrawal (will be shown to user and points refunded):') || 'Incorrect bank details.';
   }
   window.TaskEarnDB.reviewWithdrawal(withdrawalId, status, reason);
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-    window.TaskEarnDB.pushToCloud();
+    await window.TaskEarnDB.pushToCloud();
   }
   renderWithdrawalsQueue();
   renderOverviewStats();

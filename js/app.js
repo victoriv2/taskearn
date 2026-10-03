@@ -363,11 +363,11 @@ async function handleLoginSubmit(event) {
   try {
     if (btn) {
       btn.disabled = true;
-      btn.textContent = 'Signing in...';
+      btn.textContent = 'Verifying credentials...';
     }
-    // Pull fresh data from JSONBin cloud before verifying login
+    // Pull fresh data from JSONBin cloud before verifying login to prevent stale credentials
     if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud) {
-      await window.TaskEarnDB.pullFromCloud();
+      await window.TaskEarnDB.pullFromCloud(true);
     }
     const user = window.TaskEarnDB.loginUser(identifier, pass);
     activeUser = user;
@@ -813,13 +813,15 @@ function cancelEditBankDetails() {
   renderWithdrawalsTab();
 }
 
-function handleSaveBankDetails(event) {
+async function handleSaveBankDetails(event) {
   event.preventDefault();
   if (!activeUser) return;
   const bankName = document.getElementById('wdrBankSelect')?.value.trim();
   const accountNumber = document.getElementById('wdrAccountNumber')?.value.trim();
   const accountName = document.getElementById('wdrAccountName')?.value.trim();
   const alertEl = document.getElementById('bankDetailsAlert');
+  const btn = event.target.querySelector('button[type="submit"]');
+  const originalText = btn ? btn.textContent : '';
 
   if (!bankName) {
     if (alertEl) {
@@ -850,6 +852,11 @@ function handleSaveBankDetails(event) {
   }
 
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving details...';
+    }
+
     activeUser = window.TaskEarnDB.updateUser(activeUser.id, {
       bankDetails: {
         bankName,
@@ -858,9 +865,9 @@ function handleSaveBankDetails(event) {
       }
     });
 
-    // Push updated profile to JSONBin cloud immediately
+    // Push updated profile to JSONBin cloud immediately and wait for it
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
 
     isEditingBankDetails = false;
@@ -868,7 +875,7 @@ function handleSaveBankDetails(event) {
 
     if (alertEl) {
       alertEl.className = 'alert alert-success';
-      alertEl.textContent = 'Bank account details saved successfully!';
+      alertEl.textContent = 'Bank account details saved successfully and synced!';
       alertEl.style.display = 'block';
       setTimeout(() => {
         if (alertEl) alertEl.style.display = 'none';
@@ -879,6 +886,11 @@ function handleSaveBankDetails(event) {
       alertEl.className = 'alert alert-error';
       alertEl.textContent = err.message;
       alertEl.style.display = 'block';
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
     }
   }
 }
@@ -1023,10 +1035,12 @@ function calculateWithdrawalNaira() {
   document.getElementById('wdrCalculatedNaira').textContent = `Estimated Payout: ₦${naira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
 
-function handleWithdrawalRequest(event) {
+async function handleWithdrawalRequest(event) {
   event.preventDefault();
   const alertEl = document.getElementById('withdrawalAlert');
   const points = Number(document.getElementById('wdrPointsInput').value);
+  const btn = event.target.querySelector('button[type="submit"]');
+  const originalText = btn ? btn.textContent : '';
 
   // Must have saved bank details
   if (!activeUser.bankDetails || !activeUser.bankDetails.bankName || !activeUser.bankDetails.accountNumber) {
@@ -1047,6 +1061,11 @@ function handleWithdrawalRequest(event) {
   }
 
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Submitting request...';
+    }
+
     window.TaskEarnDB.requestWithdrawal({
       userId: activeUser.id,
       points,
@@ -1056,7 +1075,7 @@ function handleWithdrawalRequest(event) {
     });
 
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
 
     alertEl.className = 'alert alert-success';
@@ -1071,6 +1090,11 @@ function handleWithdrawalRequest(event) {
     alertEl.className = 'alert alert-error';
     alertEl.textContent = err.message;
     alertEl.style.display = 'block';
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 }
 
@@ -1287,26 +1311,26 @@ async function handleAvatarUpload(event) {
     loadProfileDetails();
     updateWalletHeader();
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
     const alertEl = document.getElementById('profileAlert');
     if (alertEl) {
       alertEl.className = 'alert alert-success';
-      alertEl.textContent = 'Profile picture updated successfully!';
+      alertEl.textContent = 'Profile picture updated successfully and synced across devices!';
       alertEl.style.display = 'block';
       setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 3000);
     }
   }
 }
 
-function handleRemoveAvatar() {
+async function handleRemoveAvatar() {
   if (!activeUser || !activeUser.avatar) return;
   if (!confirm('Are you sure you want to remove your profile picture?')) return;
 
   const updated = window.TaskEarnDB.updateUser(activeUser.id, { avatar: '' });
   activeUser = updated;
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-    window.TaskEarnDB.pushToCloud();
+    await window.TaskEarnDB.pushToCloud();
   }
   loadProfileDetails();
   updateWalletHeader();
@@ -1317,13 +1341,13 @@ function handleRemoveAvatar() {
   const alertEl = document.getElementById('profileAlert');
   if (alertEl) {
     alertEl.className = 'alert alert-success';
-    alertEl.textContent = 'Profile picture removed successfully.';
+    alertEl.textContent = 'Profile picture removed successfully and synced.';
     alertEl.style.display = 'block';
     setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 3000);
   }
 }
 
-function handleProfileUpdate(event) {
+async function handleProfileUpdate(event) {
   event.preventDefault();
   const firstName = document.getElementById('profFirstName').value.trim();
   const lastName = document.getElementById('profLastName').value.trim();
@@ -1331,6 +1355,8 @@ function handleProfileUpdate(event) {
   const email = document.getElementById('profEmail').value.trim();
   const phone = document.getElementById('profPhone').value.trim();
   const alertEl = document.getElementById('profileAlert');
+  const btn = event.target.querySelector('button[type="submit"]');
+  const originalText = btn ? btn.textContent : '';
 
   const cleanPhone = phone.replace(/[\s-]/g, '');
   if (!/^\d{11}$/.test(cleanPhone)) {
@@ -1341,15 +1367,20 @@ function handleProfileUpdate(event) {
   }
 
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving profile...';
+    }
+
     const updated = window.TaskEarnDB.updateUser(activeUser.id, { firstName, lastName, username, email, phone });
     activeUser = updated;
 
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
 
     alertEl.className = 'alert alert-success';
-    alertEl.textContent = 'Profile updated successfully!';
+    alertEl.textContent = 'Profile updated successfully and synced across all devices!';
     alertEl.style.display = 'block';
     loadProfileDetails();
     updateWalletHeader();
@@ -1358,15 +1389,25 @@ function handleProfileUpdate(event) {
     alertEl.className = 'alert alert-error';
     alertEl.textContent = err.message;
     alertEl.style.display = 'block';
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 }
 
-function handlePasswordChange(event) {
+async function handlePasswordChange(event) {
   event.preventDefault();
   const currentPass = document.getElementById('currentPass').value;
   const newPass = document.getElementById('newPass').value;
   const confirmPass = document.getElementById('confirmNewPass')?.value;
   const alertEl = document.getElementById('passwordAlert') || document.getElementById('profileAlert');
+  const btn = event.target.querySelector('button[type="submit"]');
+  const originalText = btn ? btn.textContent : '';
+
+  // Ensure activeUser has latest cached data
+  activeUser = window.TaskEarnDB.getCurrentUser();
 
   if (activeUser.password !== currentPass) {
     alertEl.className = 'alert alert-error';
@@ -1390,15 +1431,21 @@ function handlePasswordChange(event) {
   }
 
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Updating password...';
+    }
+
     window.TaskEarnDB.updateUser(activeUser.id, { password: newPass });
     activeUser = window.TaskEarnDB.getCurrentUser();
 
+    // Await cloud sync so the remote JSONBin record is updated BEFORE user navigates or switches devices
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-      window.TaskEarnDB.pushToCloud();
+      await window.TaskEarnDB.pushToCloud();
     }
 
     alertEl.className = 'alert alert-success';
-    alertEl.textContent = 'Password changed successfully and updated in your account.';
+    alertEl.textContent = 'Password changed successfully and synchronized across all devices!';
     alertEl.style.display = 'block';
 
     document.getElementById('passwordForm').reset();
@@ -1409,8 +1456,13 @@ function handlePasswordChange(event) {
     setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 4000);
   } catch (err) {
     alertEl.className = 'alert alert-error';
-    alertEl.textContent = err.message;
+    alertEl.textContent = err.message || 'Failed to update password. Please check your internet connection.';
     alertEl.style.display = 'block';
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 }
 

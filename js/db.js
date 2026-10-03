@@ -47,7 +47,10 @@ class DataStore {
     this._syncListeners = [];
     this._pushTimeout = null;
     this._isPushing = false;
+    this._pushPromise = null;
+    this._hasQueuedPush = false;
     this._isPulling = false;
+    this._pullPromise = null;
     this._cloudStatus = {
       connected: false,
       lastSync: null,
@@ -150,122 +153,171 @@ class DataStore {
   }
 
   async pushToCloud() {
-    if (!JSONBIN_CONFIG.MASTER_KEY || !JSONBIN_CONFIG.BIN_ID) return;
-    this._isPushing = true;
-    try {
-      const payload = {
-        settings: this.getSettings(),
-        users: this._get(STORAGE_KEYS.USERS),
-        tasks: this._get(STORAGE_KEYS.TASKS),
-        submissions: this._get(STORAGE_KEYS.SUBMISSIONS),
-        withdrawals: this._get(STORAGE_KEYS.WITHDRAWALS),
-        payments: this._get(STORAGE_KEYS.PAYMENTS),
-        messages: this._get(STORAGE_KEYS.MESSAGES)
-      };
+    if (!JSONBIN_CONFIG.MASTER_KEY || !JSONBIN_CONFIG.BIN_ID) return false;
 
-      const res = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        throw new Error(`JSONBin save error: ${res.status} ${res.statusText}`);
-      }
-
-      this._cloudStatus.connected = true;
-      this._cloudStatus.lastSync = new Date().toISOString();
-      this._cloudStatus.error = null;
-      this._notifySync('push', payload);
-    } catch (err) {
-      console.warn('JSONBin push failed (cached locally):', err.message);
-      this._cloudStatus.error = err.message;
-    } finally {
-      this._isPushing = false;
+    // Clear any pending debounced timeout since we are pushing now
+    if (this._pushTimeout) {
+      clearTimeout(this._pushTimeout);
+      this._pushTimeout = null;
     }
-  }
 
-  async pullFromCloud() {
-    if (this._isPulling || !JSONBIN_CONFIG.MASTER_KEY || !JSONBIN_CONFIG.BIN_ID) return;
-    this._isPulling = true;
-    try {
-      const res = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
-        method: 'GET',
-        headers: {
-          'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
-        }
-      });
-
-      if (!res.ok) {
-        throw new Error(`JSONBin fetch error: ${res.status} ${res.statusText}`);
+    // If another push is currently active, queue another push right after it finishes
+    if (this._pushPromise) {
+      this._hasQueuedPush = true;
+      try {
+        await this._pushPromise;
+      } catch (e) {}
+      if (this._hasQueuedPush) {
+        this._hasQueuedPush = false;
+        return this.pushToCloud();
       }
+      return true;
+    }
 
-      const json = await res.json();
-      const record = json.record;
+    this._pushPromise = (async () => {
+      this._isPushing = true;
+      try {
+        const payload = {
+          settings: this.getSettings(),
+          users: this._get(STORAGE_KEYS.USERS),
+          tasks: this._get(STORAGE_KEYS.TASKS),
+          submissions: this._get(STORAGE_KEYS.SUBMISSIONS),
+          withdrawals: this._get(STORAGE_KEYS.WITHDRAWALS),
+          payments: this._get(STORAGE_KEYS.PAYMENTS),
+          messages: this._get(STORAGE_KEYS.MESSAGES)
+        };
 
-      if (record && typeof record === 'object') {
-        const localUsers = this._get(STORAGE_KEYS.USERS);
-        const localTasks = this._get(STORAGE_KEYS.TASKS);
+        const res = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+          },
+          body: JSON.stringify(payload)
+        });
 
-        const remoteHasUsers = Array.isArray(record.users) && record.users.length > 0;
-        const remoteHasTasks = Array.isArray(record.tasks) && record.tasks.length > 0;
-
-        // If remote is newly initialized & empty, but local has existing accounts or tasks, upload local to remote
-        if (!remoteHasUsers && !remoteHasTasks && (localUsers.length > 0 || localTasks.length > 0)) {
-          await this.pushToCloud();
-        } else {
-          // Adopt remote into local cache
-          if (Array.isArray(record.users)) {
-            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(record.users));
-          }
-          if (Array.isArray(record.tasks)) {
-            localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(record.tasks));
-          }
-          if (Array.isArray(record.submissions)) {
-            localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(record.submissions));
-          }
-          if (Array.isArray(record.withdrawals)) {
-            localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify(record.withdrawals));
-          }
-          if (Array.isArray(record.payments)) {
-            localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(record.payments));
-          }
-          if (Array.isArray(record.messages)) {
-            localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(record.messages));
-          }
-          if (record.settings && typeof record.settings === 'object') {
-            const currentSettings = this.getSettings();
-            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...currentSettings, ...record.settings }));
-          }
-
-          // Refresh current active user session if applicable
-          const currentUser = this.getCurrentUser();
-          if (currentUser && Array.isArray(record.users)) {
-            const updatedProfile = record.users.find(u => u.id === currentUser.id);
-            if (updatedProfile) {
-              localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
-            }
-          }
+        if (!res.ok) {
+          throw new Error(`JSONBin save error: ${res.status} ${res.statusText}`);
         }
 
         this._cloudStatus.connected = true;
         this._cloudStatus.lastSync = new Date().toISOString();
         this._cloudStatus.error = null;
-        this._notifySync('pull', record);
+        this._notifySync('push', payload);
+        return true;
+      } catch (err) {
+        console.warn('JSONBin push failed (cached locally):', err.message);
+        this._cloudStatus.error = err.message;
+        throw err;
+      } finally {
+        this._isPushing = false;
+        this._pushPromise = null;
       }
-    } catch (err) {
-      console.warn('JSONBin pull failed (using local cache):', err.message);
-      this._cloudStatus.error = err.message;
-    } finally {
-      this._isPulling = false;
+    })();
+
+    return this._pushPromise;
+  }
+
+  async pullFromCloud(force = false) {
+    if (!JSONBIN_CONFIG.MASTER_KEY || !JSONBIN_CONFIG.BIN_ID) return null;
+
+    // If a pull is currently in-flight, return that active promise so caller waits for fresh data
+    if (this._pullPromise) {
+      if (!force) {
+        return this._pullPromise;
+      }
+      try {
+        await this._pullPromise;
+      } catch (e) {}
     }
+
+    this._pullPromise = (async () => {
+      this._isPulling = true;
+      try {
+        // Cache buster + no-cache headers to guarantee fresh data across all browsers/devices
+        const res = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest?t=${Date.now()}`, {
+          method: 'GET',
+          headers: {
+            'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error(`JSONBin fetch error: ${res.status} ${res.statusText}`);
+        }
+
+        const json = await res.json();
+        const record = json.record;
+
+        if (record && typeof record === 'object') {
+          const localUsers = this._get(STORAGE_KEYS.USERS);
+          const localTasks = this._get(STORAGE_KEYS.TASKS);
+
+          const remoteHasUsers = Array.isArray(record.users) && record.users.length > 0;
+          const remoteHasTasks = Array.isArray(record.tasks) && record.tasks.length > 0;
+
+          // If remote is newly initialized & empty, but local has existing accounts or tasks, upload local to remote
+          if (!remoteHasUsers && !remoteHasTasks && (localUsers.length > 0 || localTasks.length > 0)) {
+            await this.pushToCloud();
+          } else {
+            // Adopt remote into local cache
+            if (Array.isArray(record.users)) {
+              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(record.users));
+            }
+            if (Array.isArray(record.tasks)) {
+              localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(record.tasks));
+            }
+            if (Array.isArray(record.submissions)) {
+              localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(record.submissions));
+            }
+            if (Array.isArray(record.withdrawals)) {
+              localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify(record.withdrawals));
+            }
+            if (Array.isArray(record.payments)) {
+              localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(record.payments));
+            }
+            if (Array.isArray(record.messages)) {
+              localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(record.messages));
+            }
+            if (record.settings && typeof record.settings === 'object') {
+              const currentSettings = this.getSettings();
+              localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...currentSettings, ...record.settings }));
+            }
+
+            // Refresh current active user session if applicable
+            const currentUser = this.getCurrentUser();
+            if (currentUser && Array.isArray(record.users)) {
+              const updatedProfile = record.users.find(u => u.id === currentUser.id);
+              if (updatedProfile) {
+                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
+              }
+            }
+          }
+
+          this._cloudStatus.connected = true;
+          this._cloudStatus.lastSync = new Date().toISOString();
+          this._cloudStatus.error = null;
+          this._notifySync('pull', record);
+          return record;
+        }
+        return null;
+      } catch (err) {
+        console.warn('JSONBin pull failed (using local cache):', err.message);
+        this._cloudStatus.error = err.message;
+        return null;
+      } finally {
+        this._isPulling = false;
+        this._pullPromise = null;
+      }
+    })();
+
+    return this._pullPromise;
   }
 
   async syncNow() {
-    await this.pullFromCloud();
+    await this.pullFromCloud(true);
     await this.pushToCloud();
     return this.getCloudStatus();
   }
