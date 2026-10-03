@@ -501,7 +501,14 @@ input:focus, select:focus, textarea:focus {
 }
 
 .nav-item.active {
-  color: var(--primary-green);
+  color: var(--primary-green) !important;
+  font-weight: 700;
+}
+
+.nav-item.active .icon,
+.nav-item.active svg {
+  stroke: var(--primary-green) !important;
+  color: var(--primary-green) !important;
 }
 
 .nav-item .icon {
@@ -971,7 +978,7 @@ tr:hover td {
     cursor: pointer;
     margin-right: 8px;
   }
-  .chat-container {
+  .inbox-chat-panel.chat-container {
     height: calc(100vh - 220px);
     min-height: 400px;
   }
@@ -982,6 +989,97 @@ tr:hover td {
   .chat-input-bar input {
     padding: 9px 12px;
     font-size: 0.9rem;
+  }
+}
+
+/* ==========================================================================
+   Full-Bleed Messages Layout (Zero Spacing Around Card, Fits Top to Bottom)
+   ========================================================================== */
+
+@media (max-width: 991px) {
+  /* Eliminate all outer padding/margins so message card fits edge-to-edge between header & bottom nav */
+  body.tab-messages-active .content-container,
+  .content-container:has(#tab-messages.active) {
+    padding: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: calc(100dvh - var(--header-height) - var(--bottom-nav-height)) !important;
+    height: calc(100vh - var(--header-height) - var(--bottom-nav-height));
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  body.tab-messages-active #tab-messages,
+  #tab-messages.active {
+    flex: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  body.tab-messages-active #tab-messages .chat-container,
+  #tab-messages.active .chat-container {
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+    width: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.tab-messages-active #tab-messages .chat-header,
+  #tab-messages.active .chat-header {
+    border-radius: 0 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    flex-shrink: 0 !important;
+    padding: 12px 16px !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.tab-messages-active #tab-messages .chat-messages,
+  #tab-messages.active .chat-messages {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 16px 14px !important;
+    background-color: #fafbfc !important;
+  }
+
+  body.tab-messages-active #tab-messages .chat-input-bar,
+  #tab-messages.active .chat-input-bar {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: 1px solid var(--border-color) !important;
+    padding: 10px 14px !important;
+    background-color: var(--bg-surface) !important;
+    flex-shrink: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  body.tab-messages-active #tab-messages .chat-input-bar input,
+  #tab-messages.active .chat-input-bar input {
+    padding: 9px 12px !important;
+    font-size: 0.9rem !important;
   }
 }
 

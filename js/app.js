@@ -442,6 +442,9 @@ async function handleSignupSubmit(event) {
 
 function handleUserLogout() {
   window.TaskEarnDB.logoutUser();
+  if (document.body) {
+    document.body.classList.remove('tab-messages-active');
+  }
   try {
     localStorage.removeItem('taskearn_user_active_tab');
     localStorage.setItem('taskearn_auth_form', 'login');
@@ -477,7 +480,7 @@ function switchUserTab(tabName) {
   const mobileTabMap = {
     'tasks': 'mNavTasks',
     'withdrawals': 'mNavWithdraw',
-    'messages': 'mNavChat',
+    'messages': 'mNavMessages',
     'referrals': 'mNavReferrals',
     'more': 'mNavMore'
   };
@@ -487,9 +490,14 @@ function switchUserTab(tabName) {
     if (el) el.classList.toggle('active', name === tabName);
   });
   Object.entries(mobileTabMap).forEach(([name, id]) => {
-    const el = document.getElementById(id);
+    const el = document.getElementById(id) || (name === 'messages' ? (document.getElementById('mNavMessages') || document.getElementById('mNavChat')) : null);
     if (el) el.classList.toggle('active', name === tabName);
   });
+
+  // Toggle full-bleed chat container class on body
+  if (document.body) {
+    document.body.classList.toggle('tab-messages-active', tabName === 'messages');
+  }
 
   if (tabName === 'tasks') {
     renderUserTasks();
