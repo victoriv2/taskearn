@@ -531,7 +531,12 @@ function openUserDrawer(userId) {
 }
 
 async function handleAdminRemoveUserAvatar(userId) {
-  if (!confirm('Are you sure you want to remove this user\'s profile picture?')) return;
+  const confirmed = await window.showCustomConfirm('Are you sure you want to remove this user\'s profile picture?', {
+    title: 'Remove Profile Picture',
+    confirmText: 'Remove Picture',
+    danger: true
+  });
+  if (!confirmed) return;
   window.TaskEarnDB.updateUser(userId, { avatar: '' });
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
     await window.TaskEarnDB.pushToCloud();
@@ -591,7 +596,10 @@ async function handleAdminSaveUserDetails(userId) {
       alertEl.textContent = 'Bank account number must be exactly 10 digits (NUBAN).';
       alertEl.style.display = 'block';
     } else {
-      alert('Bank account number must be exactly 10 digits (NUBAN).');
+      await window.showCustomAlert('Bank account number must be exactly 10 digits (NUBAN).', {
+        title: 'Invalid Account Number',
+        type: 'error'
+      });
     }
     return;
   }
@@ -625,7 +633,10 @@ async function handleAdminSaveUserDetails(userId) {
       alertEl.textContent = err.message;
       alertEl.style.display = 'block';
     } else {
-      alert(err.message);
+      await window.showCustomAlert(err.message, {
+        title: 'Error',
+        type: 'error'
+      });
     }
   }
 }
@@ -645,7 +656,7 @@ function closeUserDrawer() {
   document.getElementById('userDrawer').classList.remove('open');
 }
 
-function handleDrawerPointsAdjustment(userId) {
+async function handleDrawerPointsAdjustment(userId) {
   const input = document.getElementById('drawerAdjustPointsInput');
   const delta = Number(input.value);
   if (!delta || isNaN(delta)) return;
@@ -653,15 +664,29 @@ function handleDrawerPointsAdjustment(userId) {
   const user = window.TaskEarnDB.getUserById(userId);
   const newBal = Math.max(0, user.pointsBalance + delta);
   window.TaskEarnDB.updateUser(userId, { pointsBalance: newBal });
-  alert(`User balance updated to ${newBal.toLocaleString()} PTS`);
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    await window.TaskEarnDB.pushToCloud();
+  }
+  await window.showCustomAlert(`User balance updated to ${newBal.toLocaleString()} PTS`, {
+    title: 'Balance Updated',
+    type: 'success'
+  });
   openUserDrawer(userId);
   renderOverviewStats();
   renderAdminUsers();
 }
 
-function handleToggleUserStatus(userId, newStatus) {
-  if (!confirm(`Are you sure you want to change user status to ${newStatus.toUpperCase()}?`)) return;
+async function handleToggleUserStatus(userId, newStatus) {
+  const confirmed = await window.showCustomConfirm(`Are you sure you want to change user status to ${newStatus.toUpperCase()}?`, {
+    title: 'Change User Status',
+    confirmText: 'Change Status',
+    danger: newStatus === 'banned' || newStatus === 'suspended'
+  });
+  if (!confirmed) return;
   window.TaskEarnDB.updateUser(userId, { status: newStatus });
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    await window.TaskEarnDB.pushToCloud();
+  }
   openUserDrawer(userId);
   renderAdminUsers();
 }
@@ -748,9 +773,17 @@ function toggleTaskVisibility(taskId) {
   renderAdminTasks();
 }
 
-function handleDeleteTask(taskId) {
-  if (!confirm('Are you sure you want to delete this task campaign?')) return;
+async function handleDeleteTask(taskId) {
+  const confirmed = await window.showCustomConfirm('Are you sure you want to delete this task campaign?', {
+    title: 'Delete Campaign',
+    confirmText: 'Delete Campaign',
+    danger: true
+  });
+  if (!confirmed) return;
   window.TaskEarnDB.deleteTask(taskId);
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    await window.TaskEarnDB.pushToCloud();
+  }
   renderAdminTasks();
 }
 
@@ -1178,7 +1211,19 @@ function renderWithdrawalsQueue() {
 async function handleReviewWithdrawal(withdrawalId, status) {
   let reason = '';
   if (status === 'declined') {
-    reason = prompt('Reason for declining withdrawal (will be shown to user and points refunded):') || 'Incorrect bank details.';
+    const promptResult = await window.showCustomPrompt(
+      'Reason for declining withdrawal (will be shown to user and points refunded):',
+      'Incorrect bank details.',
+      {
+        title: 'Decline Withdrawal',
+        confirmText: 'Decline Withdrawal',
+        cancelText: 'Cancel',
+        danger: true,
+        placeholder: 'Reason for declining...'
+      }
+    );
+    if (promptResult === null) return;
+    reason = promptResult.trim() || 'Incorrect bank details.';
   }
   window.TaskEarnDB.reviewWithdrawal(withdrawalId, status, reason);
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
@@ -1340,10 +1385,13 @@ function clearAdminChatImagePreview() {
   document.getElementById('admChatImagePreviewContainer').style.display = 'none';
 }
 
-function handleSendAdminReply(event) {
+async function handleSendAdminReply(event) {
   event.preventDefault();
   if (!selectedUserForChat) {
-    alert('Please select a user conversation first.');
+    await window.showCustomAlert('Please select a user conversation first.', {
+      title: 'Conversation Required',
+      type: 'warning'
+    });
     return;
   }
 
@@ -1393,18 +1441,32 @@ async function manualCloudSync() {
       badge.textContent = 'JSONBin Connected';
       badge.className = 'badge badge-approved';
     }
-    alert('Cloud database synchronized successfully with JSONBin.io!');
+    await window.showCustomAlert('Cloud database synchronized successfully with JSONBin.io!', {
+      title: 'Cloud Sync Successful',
+      type: 'success'
+    });
   } catch (err) {
     if (badge) {
       badge.textContent = 'Sync Error';
       badge.className = 'badge badge-declined';
     }
-    alert('Cloud sync failed: ' + err.message);
+    await window.showCustomAlert('Cloud sync failed: ' + err.message, {
+      title: 'Cloud Sync Failed',
+      type: 'error'
+    });
   }
 }
 
 async function resetDatabaseDemoData() {
-  if (!confirm('This will wipe all data and reset to completely clean empty state in both local cache and JSONBin cloud. Proceed?')) return;
+  const confirmed = await window.showCustomConfirm(
+    'This will wipe all data and reset to completely clean empty state in both local cache and JSONBin cloud. Proceed?',
+    {
+      title: 'Wipe & Reset Database',
+      confirmText: 'Wipe All Data',
+      danger: true
+    }
+  );
+  if (!confirmed) return;
   localStorage.clear();
   window.TaskEarnDB.init();
   try {

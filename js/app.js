@@ -183,7 +183,7 @@ function showVerifyAlert(message, type = 'error') {
   alertEl.style.display = 'block';
 }
 
-function initiatePaystackVerification() {
+async function initiatePaystackVerification() {
   if (!activeUser) return;
   const settings = window.TaskEarnDB.getSettings();
   const pubKey = settings.paystackPublicKey || 'pk_live_732d9b62cd035b8dad96e981d7f6982540342e80';
@@ -192,9 +192,14 @@ function initiatePaystackVerification() {
 
   // Verify Paystack library presence
   if (typeof PaystackPop === 'undefined') {
-    const simulate = confirm(
+    const simulate = await window.showCustomConfirm(
       "Paystack script could not be reached (offline or blocked connection).\n\n" +
-      "Would you like to simulate a successful ₦" + fee + " Paystack verification to continue testing?"
+      "Would you like to simulate a successful ₦" + fee + " Paystack verification to continue testing?",
+      {
+        title: 'Simulate Verification',
+        confirmText: 'Simulate Payment',
+        cancelText: 'Cancel'
+      }
     );
     if (simulate) {
       const mockRef = 'TE_SIM_' + Date.now();
@@ -1267,18 +1272,36 @@ function renderReferralsTab() {
   }
 }
 
-function copyReferralCode() {
+async function copyReferralCode() {
   const code = document.getElementById('userReferralCodeInput').value;
-  navigator.clipboard.writeText(code).then(() => {
-    alert('Referral code copied to clipboard!');
-  });
+  try {
+    await navigator.clipboard.writeText(code);
+    await window.showCustomAlert('Referral code copied to clipboard!', {
+      title: 'Copied to Clipboard',
+      type: 'success'
+    });
+  } catch (e) {
+    await window.showCustomAlert('Failed to copy to clipboard.', {
+      title: 'Copy Failed',
+      type: 'error'
+    });
+  }
 }
 
-function copyReferralLink() {
+async function copyReferralLink() {
   const link = document.getElementById('userReferralLinkInput').value;
-  navigator.clipboard.writeText(link).then(() => {
-    alert('Referral link copied to clipboard!');
-  });
+  try {
+    await navigator.clipboard.writeText(link);
+    await window.showCustomAlert('Referral link copied to clipboard!', {
+      title: 'Copied to Clipboard',
+      type: 'success'
+    });
+  } catch (e) {
+    await window.showCustomAlert('Failed to copy to clipboard.', {
+      title: 'Copy Failed',
+      type: 'error'
+    });
+  }
 }
 
 // =================== TAB 5: MORE / PROFILE ===================
@@ -1333,7 +1356,12 @@ async function handleAvatarUpload(event) {
 
 async function handleRemoveAvatar() {
   if (!activeUser || !activeUser.avatar) return;
-  if (!confirm('Are you sure you want to remove your profile picture?')) return;
+  const confirmed = await window.showCustomConfirm('Are you sure you want to remove your profile picture?', {
+    title: 'Remove Profile Picture',
+    confirmText: 'Remove Picture',
+    danger: true
+  });
+  if (!confirmed) return;
 
   const updated = window.TaskEarnDB.updateUser(activeUser.id, { avatar: '' });
   activeUser = updated;
