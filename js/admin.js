@@ -161,6 +161,12 @@ function switchAdminTab(tabName, preserveSubpage = false) {
     if (document.body) {
       document.body.classList.remove('adm-subpage-active', 'adm-inbox-active');
     }
+    document.querySelectorAll('.more-subpage').forEach(el => {
+      el.style.display = 'none';
+      el.classList.remove('active');
+    });
+    const hub = document.getElementById('admMoreHubMenu');
+    if (hub) hub.style.display = 'block';
   }
 
   try {
@@ -212,7 +218,10 @@ function switchAdminTab(tabName, preserveSubpage = false) {
     renderWithdrawalsQueue();
   } else if (tabName === 'more') {
     if (!preserveSubpage) {
-      document.querySelectorAll('.more-subpage').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.more-subpage').forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('active');
+      });
       const hub = document.getElementById('admMoreHubMenu');
       if (hub) hub.style.display = 'block';
       updateMoreHubBadges();
@@ -227,12 +236,15 @@ function openMorePage(pageId) {
   const hub = document.getElementById('admMoreHubMenu');
   if (hub) hub.style.display = 'none';
 
-  document.querySelectorAll('.more-subpage').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.more-subpage').forEach(el => {
+    el.style.display = 'none';
+    el.classList.remove('active');
+  });
 
   const target = document.getElementById(`admMorePage-${pageId}`);
   if (target) {
-    target.style.display = 'block';
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.classList.add('active');
+    target.style.display = 'flex';
   }
 
   if (document.body) {
@@ -258,7 +270,10 @@ function closeMorePage() {
   if (document.body) {
     document.body.classList.remove('adm-subpage-active', 'adm-inbox-active');
   }
-  document.querySelectorAll('.more-subpage').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.more-subpage').forEach(el => {
+    el.style.display = 'none';
+    el.classList.remove('active');
+  });
   const hub = document.getElementById('admMoreHubMenu');
   if (hub) {
     hub.style.display = 'block';
