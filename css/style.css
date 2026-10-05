@@ -643,30 +643,52 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   max-width: 400px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .toolbar .search-box {
   flex: 1;
 }
 
-.search-box .icon,
-.search-box > span .icon,
-.search-box > span:first-child {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 2;
+/* Position only the immediate container or direct icon child */
+.search-box > span:first-child,
+.search-box > .icon:first-child,
+.search-box > svg:first-child {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: var(--text-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  width: 18px !important;
+  height: 18px !important;
+  line-height: 1 !important;
+}
+
+/* Inner SVG must NOT be absolute positioned with left offset */
+.search-box > span:first-child .icon,
+.search-box > span:first-child svg {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  color: var(--text-muted) !important;
+  stroke: var(--text-muted) !important;
 }
 
 .search-box input {
-  width: 100%;
-  padding-left: 38px;
+  width: 100% !important;
+  padding-left: 44px !important;
+  padding-right: 14px !important;
+  box-sizing: border-box !important;
 }
 
 .filter-actions {
@@ -1786,11 +1808,13 @@ tr:hover td {
 .modal-select-search-wrap {
   margin-bottom: 12px;
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .modal-select-search-input {
-  width: 100%;
-  padding: 10px 14px 10px 38px;
+  width: 100% !important;
+  padding: 10px 14px 10px 42px !important;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background-color: var(--bg-surface);
@@ -1806,14 +1830,25 @@ tr:hover td {
 }
 
 .modal-select-search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  pointer-events: none;
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: var(--text-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.modal-select-search-icon svg {
+  position: static !important;
+  display: block !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .modal-select-empty {
