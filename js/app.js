@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   injectSvgIcons();
   setupVisibilityListener();
   handleUrlReferralParam();
+  handlePaystackCallbackParam();
   checkAuth();
 
   if (window.TaskEarnDB && window.TaskEarnDB.onSync) {
@@ -75,6 +76,37 @@ function handleUrlReferralParam() {
     }
   } catch (e) {
     // Non-blocking URL check
+  }
+}
+
+async function handlePaystackCallbackParam() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paystackRef = urlParams.get('reference') || urlParams.get('trxref');
+    if (paystackRef) {
+      let currentUser = window.TaskEarnDB.getCurrentUser();
+      if (currentUser && !currentUser.isVerified) {
+        window.TaskEarnDB.verifyUserPayment(currentUser.id, paystackRef);
+        if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+          try {
+            await window.TaskEarnDB.pushToCloud();
+          } catch (e) {}
+        }
+        activeUser = window.TaskEarnDB.getCurrentUser();
+      }
+      try {
+        localStorage.setItem('taskearn_user_active_tab', 'tasks');
+        history.replaceState(null, '', window.location.pathname + '#tasks');
+      } catch (e) {}
+      if (window.showCustomAlert) {
+        window.showCustomAlert('Your payment was confirmed. Your account is now fully active!', {
+          title: 'Account Verified',
+          type: 'success'
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Paystack callback error:', e);
   }
 }
 
@@ -169,6 +201,9 @@ function checkAuth() {
       'task': 'tasks',
       'earn': 'tasks',
       'jobs': 'tasks',
+      'home': 'tasks',
+      'dashboard': 'tasks',
+      'feed': 'tasks',
       'withdraw': 'withdrawals',
       'withdrawal': 'withdrawals',
       'payout': 'withdrawals',
@@ -191,7 +226,13 @@ function checkAuth() {
     const rawHash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
     const mappedHash = USER_ROUTE_ALIASES[rawHash] || rawHash;
 
-    if (USER_TABS.includes(mappedHash)) {
+    if (rawHash === 'verify' || rawHash === 'login' || rawHash === 'signup' || mappedHash === 'home') {
+      savedTab = 'tasks';
+      try {
+        localStorage.setItem('taskearn_user_active_tab', 'tasks');
+        history.replaceState(null, '', window.location.pathname + '#tasks');
+      } catch (e) {}
+    } else if (USER_TABS.includes(mappedHash)) {
       savedTab = mappedHash;
     } else {
       const storedTab = localStorage.getItem('taskearn_user_active_tab') || 'tasks';
@@ -234,6 +275,39 @@ async function initiatePaystackVerification() {
   const fee = Number(settings.verificationFeeNaira) || 100;
   const payBtn = document.getElementById('payVerifyBtn');
 
+  const redirectToHome = async (ref) => {
+    window.TaskEarnDB.verifyUserPayment(activeUser.id, ref);
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      try {
+        await window.TaskEarnDB.pushToCloud();
+      } catch (e) {
+        console.warn('Cloud sync error after verification:', e);
+      }
+    }
+    activeUser = window.TaskEarnDB.getCurrentUser();
+
+    try {
+      localStorage.setItem('taskearn_user_active_tab', 'tasks');
+      history.replaceState(null, '', window.location.pathname + '#tasks');
+    } catch (e) {}
+
+    const verifyScreen = document.getElementById('verifyScreen');
+    const authScreen = document.getElementById('authScreen');
+    const appScreen = document.getElementById('appScreen');
+    if (verifyScreen) verifyScreen.style.display = 'none';
+    if (authScreen) authScreen.style.display = 'none';
+    if (appScreen) appScreen.style.display = 'flex';
+
+    updateWalletHeader();
+    switchUserTab('tasks');
+    if (window.showCustomAlert) {
+      window.showCustomAlert('Your ₦' + fee.toLocaleString('en-NG') + ' account verification payment was confirmed. Welcome to TaskEarn!', {
+        title: 'Account Verified',
+        type: 'success'
+      });
+    }
+  };
+
   // Verify Paystack library presence
   if (typeof PaystackPop === 'undefined') {
     const simulate = await window.showCustomConfirm(
@@ -247,12 +321,8 @@ async function initiatePaystackVerification() {
     );
     if (simulate) {
       const mockRef = 'TE_SIM_' + Date.now();
-      window.TaskEarnDB.verifyUserPayment(activeUser.id, mockRef);
-      activeUser = window.TaskEarnDB.getCurrentUser();
-      showVerifyAlert('Payment confirmed! Your account is now fully verified.', 'success');
-      setTimeout(() => {
-        checkAuth();
-      }, 1200);
+      await redirectToHome(mockRef);
+      return;
     }
     return;
   }
@@ -293,18 +363,13 @@ async function initiatePaystackVerification() {
           }
         ]
       },
-      callback: function(response) {
+      callback: async function(response) {
         if (payBtn) {
           payBtn.disabled = false;
           payBtn.textContent = `Pay ₦${fee.toLocaleString()} via Paystack`;
         }
         const ref = response.reference || response.trxref || ('TE_VER_' + Date.now());
-        window.TaskEarnDB.verifyUserPayment(activeUser.id, ref);
-        activeUser = window.TaskEarnDB.getCurrentUser();
-        showVerifyAlert('Payment successful! Your account is now verified.', 'success');
-        setTimeout(() => {
-          checkAuth();
-        }, 1200);
+        await redirectToHome(ref);
       },
       onClose: function() {
         if (payBtn) {
@@ -584,6 +649,9 @@ window.addEventListener('hashchange', () => {
     'task': 'tasks',
     'earn': 'tasks',
     'jobs': 'tasks',
+    'home': 'tasks',
+    'dashboard': 'tasks',
+    'feed': 'tasks',
     'withdraw': 'withdrawals',
     'withdrawal': 'withdrawals',
     'payout': 'withdrawals',
