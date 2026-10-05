@@ -1140,11 +1140,13 @@
                     <button type="button" class="inbox-back-btn" onclick="backToConversationList()">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left preview-icon"><path d="m15 18-6-6 6-6"/></svg> Back
                     </button>
-                    <div id="admChatCurrentUserAvatar" style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: none; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
-                    </div>
-                    <div>
-                      <strong id="admChatCurrentUserName" style="font-size: 0.95rem;">Select a user to chat</strong>
-                      <div style="font-size: 0.76rem; color: var(--text-muted);" id="admChatCurrentUserEmail"></div>
+                    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="if(typeof selectedUserForChat !== 'undefined' && selectedUserForChat && selectedUserForChat.id) openUserDrawer(selectedUserForChat.id)" title="Click to view user profile">
+                      <div id="admChatCurrentUserAvatar" style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: none; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
+                      </div>
+                      <div>
+                        <strong id="admChatCurrentUserName" style="font-size: 0.95rem;">Select a user to chat</strong>
+                        <div style="font-size: 0.76rem; color: var(--text-muted);" id="admChatCurrentUserEmail"></div>
+                      </div>
                     </div>
                   </div>
                 </div>

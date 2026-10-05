@@ -1426,7 +1426,7 @@ tr:hover td {
   display: none;
   align-items: flex-end; /* Mobile: slides up from bottom */
   justify-content: center;
-  z-index: 100;
+  z-index: 105;
   padding: 0;
 }
 

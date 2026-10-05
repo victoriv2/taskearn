@@ -452,17 +452,19 @@ function createActivityRowHtml(c, uObj) {
     <tr>
       <td>${new Date(c.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
       <td>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div style="width: 28px; height: 28px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${c.userId}')">
+        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="openUserDrawer('${c.userId}')" title="Click to view user profile">
+          <div style="width: 28px; height: 28px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; overflow: hidden; flex-shrink: 0;">
             ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (c.userName ? c.userName[0].toUpperCase() : 'U')}
           </div>
           <div>
-            <strong style="cursor: pointer;" onclick="openUserDrawer('${c.userId}')">${escapeHtml(c.userName)}</strong>
+            <strong style="color: var(--text-main);">${escapeHtml(c.userName)}</strong>
             <div style="font-size: 0.75rem; color: var(--text-muted);">User ID: ${c.userId}</div>
           </div>
         </div>
       </td>
-      <td><strong>${escapeHtml(c.taskTitle)}</strong></td>
+      <td style="cursor: pointer;" onclick="${c.taskId ? `openEditTaskModal('${c.taskId}')` : `switchAdminTab('tasks')`}" title="Click to view task details">
+        <strong style="color: var(--primary-blue);">${escapeHtml(c.taskTitle)}</strong>
+      </td>
       <td><span class="badge badge-approved">+${c.points} PTS</span></td>
       <td>
         <span class="badge badge-active">Auto Click & Dwell</span>
@@ -543,16 +545,31 @@ function renderRecentActivity() {
   }
 }
 
+function openUserDrawerByUsername(username) {
+  if (!username) return;
+  const clean = String(username).replace(/^@/, '').toLowerCase().trim();
+  const users = window.TaskEarnDB.getUsers();
+  const target = users.find(u => (u.username && u.username.toLowerCase() === clean) || (u.referralCode && u.referralCode.toLowerCase() === clean));
+  if (target) {
+    openUserDrawer(target.id);
+  } else {
+    if (typeof showToast === 'function') {
+      showToast(`Referrer "@${username}" not found`, 'warning');
+    }
+  }
+}
+window.openUserDrawerByUsername = openUserDrawerByUsername;
+
 function createUserRowHtml(u) {
   return `
     <tr>
-      <td>
+      <td style="cursor: pointer;" onclick="openUserDrawer('${u.id}')" title="Click to view ${escapeHtml(u.firstName)}'s full profile">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 38px; height: 38px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem; border: 1px solid var(--border-color); cursor: pointer;" onclick="openUserDrawer('${u.id}')">
+          <div style="width: 38px; height: 38px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem; border: 1px solid var(--border-color);">
             ${u.avatar ? `<img src="${u.avatar}" alt="${escapeHtml(u.firstName)}" style="width: 100%; height: 100%; object-fit: cover;">` : (u.firstName ? u.firstName[0].toUpperCase() : 'U')}
           </div>
           <div>
-            <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${u.id}')">
+            <div style="font-weight: 700; color: var(--text-main);">
               ${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}
               ${u.username ? `<span style="font-weight: 500; font-size: 0.8rem; color: var(--primary-blue); margin-left: 4px;">@${escapeHtml(u.username)}</span>` : ''}
             </div>
@@ -560,19 +577,19 @@ function createUserRowHtml(u) {
           </div>
         </div>
       </td>
-      <td>
-        <div>${escapeHtml(u.email)}</div>
+      <td style="cursor: pointer;" onclick="openUserDrawer('${u.id}')" title="Click to view details">
+        <div style="color: var(--text-main); font-weight: 500;">${escapeHtml(u.email)}</div>
         <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(u.phone)}</div>
       </td>
       <td>
-        <strong style="letter-spacing: 0.04em; color: var(--primary-blue);">${escapeHtml(u.referralCode || u.username)}</strong>
-        ${u.referredBy ? `<div style="font-size: 0.75rem; color: var(--text-muted);">Invited by: @${escapeHtml(u.referredBy)}</div>` : ''}
+        <strong style="letter-spacing: 0.04em; color: var(--primary-blue); cursor: pointer;" onclick="openUserDrawer('${u.id}')" title="User referral code">${escapeHtml(u.referralCode || u.username)}</strong>
+        ${u.referredBy ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Invited by: <span style="color: var(--primary-blue); font-weight: 600; cursor: pointer; text-decoration: underline;" onclick="event.stopPropagation(); openUserDrawerByUsername('${escapeHtml(u.referredBy)}')" title="Click to view referrer profile">@${escapeHtml(u.referredBy)}</span></div>` : ''}
       </td>
-      <td>
+      <td style="cursor: pointer;" onclick="openUserDrawer('${u.id}')" title="Click to adjust points">
         <strong>${u.pointsBalance.toLocaleString()} PTS</strong>
         <div style="font-size: 0.75rem; color: var(--text-muted);">Total: ${u.totalEarnedPoints.toLocaleString()} PTS</div>
       </td>
-      <td>
+      <td style="cursor: pointer;" onclick="openUserDrawer('${u.id}')" title="Click to manage status/verification">
         <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
           <span class="badge ${u.status === 'active' ? 'badge-active' : 'badge-suspended'}">
             ${u.status.toUpperCase()}
@@ -666,7 +683,12 @@ function renderAdminUsers() {
 
 function openUserDrawer(userId) {
   const user = window.TaskEarnDB.getUserById(userId);
-  if (!user) return;
+  if (!user) {
+    if (typeof showToast === 'function') {
+      showToast('User account not found', 'warning');
+    }
+    return;
+  }
 
   const submissions = window.TaskEarnDB.getUserSubmissions(userId);
   const settings = window.TaskEarnDB.getSettings();
@@ -684,13 +706,16 @@ function openUserDrawer(userId) {
           ${user.username ? `<span style="font-size: 0.85rem; font-weight: 500; color: var(--primary-blue); margin-left: 6px;">@${escapeHtml(user.username)}</span>` : ''}
         </h4>
         <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(user.email)} &bull; ${escapeHtml(user.phone)}</div>
-        ${user.avatar ? `
-          <div style="margin-top: 6px;">
+        <div style="display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap;">
+          ${user.avatar ? `
             <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.72rem; color: #dc2626; border: 1px solid #fecaca; background: #fff;" onclick="handleAdminRemoveUserAvatar('${user.id}')">
               Remove User Photo
             </button>
-          </div>
-        ` : ''}
+          ` : ''}
+          <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="closeUserDrawer(); openMorePage('inbox'); selectUserForAdminChat('${user.id}');" title="Chat with user">
+            Message User
+          </button>
+        </div>
       </div>
     </div>
 
@@ -728,6 +753,12 @@ function openUserDrawer(userId) {
       <div><strong>Bank:</strong> ${escapeHtml(user.bankDetails?.bankName || 'Not Set')}</div>
       <div><strong>Account Number:</strong> ${escapeHtml(user.bankDetails?.accountNumber || 'Not Set')}</div>
       <div><strong>Account Name:</strong> ${escapeHtml(user.bankDetails?.accountName || 'Not Set')}</div>
+    </div>
+
+    <div class="card" style="padding: 14px; margin-bottom: 16px;">
+      <h5 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">Referral Details</h5>
+      <div><strong>Referral Code:</strong> <span style="font-weight: 600; color: var(--primary-blue);">${escapeHtml(user.referralCode || user.username)}</span></div>
+      ${user.referredBy ? `<div style="margin-top: 4px;"><strong>Referred By:</strong> <span style="color: var(--primary-blue); font-weight: 600; cursor: pointer; text-decoration: underline;" onclick="openUserDrawerByUsername('${escapeHtml(user.referredBy)}')" title="Click to view referrer profile">@${escapeHtml(user.referredBy)}</span></div>` : '<div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">Direct signup (no referrer)</div>'}
     </div>
 
     <div class="card" style="padding: 14px; margin-bottom: 16px;">
@@ -798,6 +829,25 @@ function openUserDrawer(userId) {
       <button type="button" class="btn btn-secondary btn-sm" style="width: 100%;" onclick="handleAdminSaveUserDetails('${user.id}')">
         Save User Details
       </button>
+    </div>
+
+    <div class="card" style="padding: 14px; margin-bottom: 16px;">
+      <h5 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">Recent Task Completions (${submissions.length})</h5>
+      ${submissions.length === 0 ? '<div style="font-size: 0.8rem; color: var(--text-muted);">No completed tasks yet.</div>' : `
+        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto;">
+          ${submissions.slice(0, 10).map(s => `
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+              <div style="min-width: 0; flex: 1; padding-right: 8px;">
+                <div style="font-weight: 600; color: var(--primary-blue); cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" onclick="openEditTaskModal('${s.taskId}')" title="Click to view/edit task">
+                  ${escapeHtml(s.taskTitle || 'Task')}
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">${new Date(s.submittedAt).toLocaleDateString()}</div>
+              </div>
+              <span class="badge badge-approved">+${s.points} PTS</span>
+            </div>
+          `).join('')}
+        </div>
+      `}
     </div>
 
     <div style="margin-top: 20px;">
@@ -1062,8 +1112,8 @@ function renderAdminTasks() {
     return `
       <tr>
         <td>
-          <div style="font-weight: 700;">${escapeHtml(t.title)}</div>
-          <a href="${t.targetUrl}" target="_blank" style="font-size: 0.78rem; color: var(--primary-green-dark);">
+          <div style="font-weight: 700; cursor: pointer; color: var(--text-main);" onclick="openEditTaskModal('${t.id}')" title="Click to edit task">${escapeHtml(t.title)}</div>
+          <a href="${t.targetUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 0.78rem; color: var(--primary-green-dark);">
             ${escapeHtml(t.targetUrl.substring(0, 36))}...
           </a>
         </td>
@@ -1121,7 +1171,12 @@ async function handleDeleteTask(taskId) {
 
 function openEditTaskModal(taskId) {
   const task = window.TaskEarnDB.getTaskById(taskId);
-  if (!task) return;
+  if (!task) {
+    if (typeof showToast === 'function') {
+      showToast('Task details not found (campaign may have been deleted)', 'warning');
+    }
+    return;
+  }
 
   document.getElementById('editTaskId').value = task.id;
   document.getElementById('editTaskTitle').value = task.title;
@@ -1539,12 +1594,12 @@ function createPayInRowHtml(p, uObj) {
         <div style="font-size: 0.76rem; color: var(--text-muted);">${new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
       </td>
       <td>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
+        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="openUserDrawer('${p.userId}')" title="Click to view user profile">
+          <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0;">
             ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (p.userName ? p.userName[0].toUpperCase() : 'U')}
           </div>
           <div>
-            <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
+            <div style="font-weight: 700; color: var(--text-main);">
               ${escapeHtml(p.userName || 'User')}
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(p.userEmail || '')}</div>
@@ -1636,12 +1691,12 @@ function createPendingWithdrawalRowHtml(w, uObj) {
     <tr>
       <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
       <td>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${w.userId}')">
+        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="openUserDrawer('${w.userId}')" title="Click to view user profile">
+          <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0;">
             ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (w.userName ? w.userName[0].toUpperCase() : 'U')}
           </div>
           <div>
-            <strong style="cursor: pointer;" onclick="openUserDrawer('${w.userId}')">${escapeHtml(w.userName)}</strong>
+            <strong style="color: var(--text-main);">${escapeHtml(w.userName)}</strong>
             <div style="font-size: 0.78rem; color: var(--text-muted);">User ID: ${w.userId}</div>
           </div>
         </div>
@@ -1666,12 +1721,22 @@ function createPendingWithdrawalRowHtml(w, uObj) {
   `;
 }
 
-function createCompletedWithdrawalRowHtml(w) {
+function createCompletedWithdrawalRowHtml(w, uObj) {
   const isApproved = w.status === 'approved';
   return `
     <tr>
       <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
-      <td>${escapeHtml(w.userName)}</td>
+      <td>
+        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="openUserDrawer('${w.userId}')" title="Click to view user profile">
+          <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0;">
+            ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (w.userName ? w.userName[0].toUpperCase() : 'U')}
+          </div>
+          <div>
+            <strong style="color: var(--text-main);">${escapeHtml(w.userName)}</strong>
+            <div style="font-size: 0.76rem; color: var(--text-muted);">User ID: ${w.userId}</div>
+          </div>
+        </div>
+      </td>
       <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
       <td>${escapeHtml(w.bankName)} &bull; ${escapeHtml(w.accountNumber)}</td>
       <td>
@@ -1776,7 +1841,7 @@ function renderWithdrawalsQueue() {
     if (completed.length === 0) {
       financeCompletedBody.innerHTML = emptyCompletedMsg;
     } else {
-      financeCompletedBody.innerHTML = completed.map(w => createCompletedWithdrawalRowHtml(w)).join('');
+      financeCompletedBody.innerHTML = completed.map(w => createCompletedWithdrawalRowHtml(w, userMap[w.userId])).join('');
     }
   }
 
@@ -1819,7 +1884,7 @@ function renderWithdrawalsQueue() {
         </tr>
       `;
     } else {
-      fullCompletedBody.innerHTML = filteredCompleted.map(w => createCompletedWithdrawalRowHtml(w)).join('');
+      fullCompletedBody.innerHTML = filteredCompleted.map(w => createCompletedWithdrawalRowHtml(w, userMap[w.userId])).join('');
     }
   }
 }
