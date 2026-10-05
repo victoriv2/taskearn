@@ -7,6 +7,7 @@
 let activeUser = null;
 let currentActiveTask = null;
 let taskStartTime = null;
+let taskHasBeenOpened = false;
 let isTabActive = true;
 let tempChatImageData = null;
 
@@ -727,6 +728,9 @@ function openTaskModal(taskId) {
   if (!task) return;
 
   currentActiveTask = task;
+  taskStartTime = null;
+  taskHasBeenOpened = false;
+
   const settings = window.TaskEarnDB.getSettings();
   const rate = Number(settings.pointRateNaira) || 1.0;
   const nairaVal = (task.points * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 });
@@ -753,6 +757,9 @@ function openTaskModal(taskId) {
     confirmBtn.innerHTML = `<span id="iconConfirmTask">${window.ICONS?.check || ''}</span> I Have Performed Task`;
   }
 
+  const retryBtn = document.getElementById('retryTaskBtn');
+  if (retryBtn) retryBtn.style.display = 'none';
+
   const statusBox = document.getElementById('taskVerificationStatusBox');
   if (statusBox) statusBox.style.display = 'none';
 
@@ -760,7 +767,7 @@ function openTaskModal(taskId) {
 }
 
 async function closeTaskModal(force = false) {
-  if (!force && taskStartTime) {
+  if (!force && (taskStartTime || taskHasBeenOpened)) {
     const proceed = await window.showCustomConfirm(
       'You have not completed or verified this task yet. If you close now, no points will be credited to your account. Are you sure you want to exit?',
       {
@@ -775,6 +782,7 @@ async function closeTaskModal(force = false) {
   document.getElementById('taskModal').classList.remove('open');
   currentActiveTask = null;
   taskStartTime = null;
+  taskHasBeenOpened = false;
 }
 window.closeTaskModal = closeTaskModal;
 
@@ -785,17 +793,22 @@ document.getElementById('taskModal')?.addEventListener('click', (e) => {
   }
 });
 
-// User clicks "Perform Task" -> opens link in new tab -> records start timestamp
+// User clicks "Perform Task" -> opens link in new tab -> starts dwell timer fresh
 function performTaskAction() {
   if (!currentActiveTask) return;
 
   // Open the action link in a new tab
   window.open(currentActiveTask.targetUrl, '_blank');
 
-  // Record start timestamp
+  // Record start timestamp (starts dwell timer fresh)
   taskStartTime = Date.now();
+  taskHasBeenOpened = true;
+
+  const retryBtn = document.getElementById('retryTaskBtn');
+  if (retryBtn) retryBtn.style.display = 'none';
 
   const startBtn = document.getElementById('startTaskBtn');
+  startBtn.style.display = 'block';
   startBtn.className = 'btn btn-secondary btn-block';
   startBtn.innerHTML = `<span id="iconPerformTask">${window.ICONS?.externalLink || ''}</span> Re-open Task Link`;
 
@@ -823,18 +836,66 @@ function performTaskAction() {
   if (alertBox) alertBox.style.display = 'none';
 }
 
+// User clicks "Try Again" -> re-opens link and restarts the dwell timer completely
+function retryTaskAction() {
+  if (!currentActiveTask) return;
+
+  // Re-open target link in new tab
+  window.open(currentActiveTask.targetUrl, '_blank');
+
+  // CRITICAL ANTI-CHEAT: Restart dwell timer from 0
+  taskStartTime = Date.now();
+  taskHasBeenOpened = true;
+
+  const retryBtn = document.getElementById('retryTaskBtn');
+  if (retryBtn) retryBtn.style.display = 'none';
+
+  const startBtn = document.getElementById('startTaskBtn');
+  if (startBtn) {
+    startBtn.style.display = 'block';
+    startBtn.className = 'btn btn-secondary btn-block';
+    startBtn.innerHTML = `<span id="iconPerformTask">${window.ICONS?.externalLink || ''}</span> Re-open Task Link`;
+  }
+
+  const confirmBtn = document.getElementById('confirmTaskBtn');
+  if (confirmBtn) {
+    confirmBtn.style.display = 'block';
+    confirmBtn.disabled = false;
+    confirmBtn.className = 'btn btn-primary btn-block';
+    confirmBtn.innerHTML = `<span id="iconConfirmTask">${window.ICONS?.check || ''}</span> I Have Performed Task`;
+  }
+
+  const statusBox = document.getElementById('taskVerificationStatusBox');
+  const headline = document.getElementById('taskDwellHeadline');
+  const subtext = document.getElementById('taskDwellSubtext');
+
+  if (statusBox) {
+    statusBox.style.display = 'block';
+    if (headline) headline.textContent = 'Task Link Re-opened';
+    if (subtext) {
+      subtext.innerHTML = `Perform the required task on the opened page. When completed, return here and click <strong>"I Have Performed Task"</strong> above.`;
+    }
+  }
+
+  const alertBox = document.getElementById('modalTaskAlert');
+  if (alertBox) alertBox.style.display = 'none';
+}
+window.retryTaskAction = retryTaskAction;
+
 // User clicks "I Have Performed Task" -> verify completion smartly without exposing dwell metrics
 async function verifyUserTaskCompletion() {
   if (!currentActiveTask || !activeUser) return;
 
   const alertBox = document.getElementById('modalTaskAlert');
   const confirmBtn = document.getElementById('confirmTaskBtn');
+  const startBtn = document.getElementById('startTaskBtn');
+  const retryBtn = document.getElementById('retryTaskBtn');
   const reqSec = Math.max(15, Number(currentActiveTask.timerSeconds) || 15);
 
   if (!taskStartTime) {
     if (alertBox) {
       alertBox.className = 'alert alert-error';
-      alertBox.textContent = 'Please click "Perform Task (Opens Link)" first before verifying.';
+      alertBox.textContent = 'Please click "Perform Task (Opens Link)" or "Try Again" first before verifying.';
       alertBox.style.display = 'block';
     }
     return;
@@ -844,11 +905,36 @@ async function verifyUserTaskCompletion() {
 
   // If performed under required dwell time (under 15s), reject smartly without exposing how the system verifies it
   if (elapsedSeconds < reqSec) {
+    // ANTI-CHEAT RESET: Reset start timestamp so they cannot wait idle to bypass the check
+    taskStartTime = null;
+
     if (alertBox) {
       alertBox.className = 'alert alert-error';
-      alertBox.textContent = 'Task Incomplete: We could not verify your task action. Please ensure you open the link, follow all instructions, and complete the action properly before submitting.';
+      alertBox.textContent = 'Task Incomplete: We could not verify your task action. Please click "Try Again" below to re-open the task and complete it properly.';
       alertBox.style.display = 'block';
     }
+
+    // Hide confirm button so user must click Try Again
+    if (confirmBtn) confirmBtn.style.display = 'none';
+    if (startBtn) startBtn.style.display = 'none';
+
+    // Show Try Again button
+    if (retryBtn) {
+      retryBtn.style.display = 'block';
+      retryBtn.innerHTML = `<span id="iconRetryTask">${window.ICONS?.refresh || ''}</span> Try Again`;
+    }
+
+    const statusBox = document.getElementById('taskVerificationStatusBox');
+    const headline = document.getElementById('taskDwellHeadline');
+    const subtext = document.getElementById('taskDwellSubtext');
+    if (statusBox) {
+      statusBox.style.display = 'block';
+      if (headline) headline.textContent = 'Action Incomplete';
+      if (subtext) {
+        subtext.innerHTML = 'We could not confirm your task action. Please click <strong>"Try Again"</strong> above to re-open the page and complete the task.';
+      }
+    }
+
     return;
   }
 
