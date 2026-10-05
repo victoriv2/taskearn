@@ -19,15 +19,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (window.TaskEarnDB && window.TaskEarnDB.onSync) {
     window.TaskEarnDB.onSync((type) => {
+      // Ignore self-initiated pushes to avoid disrupting active user interactions
+      if (type === 'push') return;
+
       activeUser = window.TaskEarnDB.getCurrentUser();
       if (activeUser) {
         updateWalletHeader();
         const activeTab = document.querySelector('.tab-panel.active');
+        const activeEl = document.activeElement;
+
         if (activeTab) {
-          if (activeTab.id === 'tab-tasks') renderUserTasks();
-          if (activeTab.id === 'tab-withdrawals') renderWithdrawalsTab();
-          if (activeTab.id === 'tab-support') renderChatMessages();
-          if (activeTab.id === 'tab-profile') renderProfileTab();
+          if (activeTab.id === 'tab-tasks') {
+            if (!currentActiveTask) renderUserTasks();
+          }
+          if (activeTab.id === 'tab-withdrawals') {
+            const wdrForm = document.getElementById('withdrawalForm');
+            const bankForm = document.getElementById('saveBankForm');
+            const isEditing = (wdrForm && wdrForm.contains(activeEl)) || (bankForm && bankForm.contains(activeEl));
+            if (!isEditing) renderWithdrawalsTab();
+          }
+          if (activeTab.id === 'tab-support') {
+            renderChatMessages();
+          }
+          if (activeTab.id === 'tab-profile') {
+            const profForm = document.getElementById('editProfileForm');
+            const passForm = document.getElementById('changePasswordForm');
+            const isEditing = (profForm && profForm.contains(activeEl)) || (passForm && passForm.contains(activeEl));
+            if (!isEditing) renderProfileTab();
+          }
         }
       }
     });

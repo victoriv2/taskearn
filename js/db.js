@@ -102,20 +102,27 @@ class DataStore {
     this.pullFromCloud();
 
     if (typeof window !== 'undefined') {
-      // Periodic background polling every 10 seconds to keep all users & admin in sync
+      // Periodic background polling every 15 seconds to keep all users & admin in sync
       setInterval(() => {
         this.pullFromCloud();
-      }, 10000);
+      }, 15000);
 
-      // Pull immediately when tab gains focus or becomes visible
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
+      // Pull when tab gains focus or becomes visible (throttled to at most once every 12 seconds)
+      let lastFocusPull = Date.now();
+      const throttledFocusPull = () => {
+        const now = Date.now();
+        if (now - lastFocusPull >= 12000) {
+          lastFocusPull = now;
           this.pullFromCloud();
         }
+      };
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          throttledFocusPull();
+        }
       });
-      window.addEventListener('focus', () => {
-        this.pullFromCloud();
-      });
+      window.addEventListener('focus', throttledFocusPull);
     }
   }
 
@@ -161,6 +168,13 @@ class DataStore {
       this._pushTimeout = null;
     }
 
+    // Wait for in-flight pull to finish first so we do not race
+    if (this._pullPromise) {
+      try {
+        await this._pullPromise;
+      } catch (e) {}
+    }
+
     // If another push is currently active, queue another push right after it finishes
     if (this._pushPromise) {
       this._hasQueuedPush = true;
@@ -203,7 +217,8 @@ class DataStore {
         this._cloudStatus.connected = true;
         this._cloudStatus.lastSync = new Date().toISOString();
         this._cloudStatus.error = null;
-        this._notifySync('push', payload);
+        // Notify with local flag so UI listeners don't destructively re-render active inputs
+        this._notifySync('push', { payload, isLocalPush: true });
         return true;
       } catch (err) {
         console.warn('JSONBin push failed (cached locally):', err.message);
@@ -220,6 +235,14 @@ class DataStore {
 
   async pullFromCloud(force = false) {
     if (!JSONBIN_CONFIG.MASTER_KEY || !JSONBIN_CONFIG.BIN_ID) return null;
+
+    // If local changes are currently pushing, wait so we don't pull stale cloud data
+    if (this._isPushing && this._pushPromise) {
+      try {
+        await this._pushPromise;
+      } catch (e) {}
+      if (!force) return null;
+    }
 
     // If a pull is currently in-flight, return that active promise so caller waits for fresh data
     if (this._pullPromise) {
@@ -262,45 +285,74 @@ class DataStore {
           if (!remoteHasUsers && !remoteHasTasks && (localUsers.length > 0 || localTasks.length > 0)) {
             await this.pushToCloud();
           } else {
-            // Adopt remote into local cache
-            if (Array.isArray(record.users)) {
-              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(record.users));
+            // Check if remote data actually differs from local storage to prevent unnecessary UI re-rendering glitches
+            const currentUsersStr = localStorage.getItem(STORAGE_KEYS.USERS) || '[]';
+            const currentTasksStr = localStorage.getItem(STORAGE_KEYS.TASKS) || '[]';
+            const currentSubsStr = localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '[]';
+            const currentWdrStr = localStorage.getItem(STORAGE_KEYS.WITHDRAWALS) || '[]';
+            const currentPayStr = localStorage.getItem(STORAGE_KEYS.PAYMENTS) || '[]';
+            const currentMsgStr = localStorage.getItem(STORAGE_KEYS.MESSAGES) || '[]';
+            const currentSettingsStr = localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}';
+
+            const newUsersStr = Array.isArray(record.users) ? JSON.stringify(record.users) : currentUsersStr;
+            const newTasksStr = Array.isArray(record.tasks) ? JSON.stringify(record.tasks) : currentTasksStr;
+            const newSubsStr = Array.isArray(record.submissions) ? JSON.stringify(record.submissions) : currentSubsStr;
+            const newWdrStr = Array.isArray(record.withdrawals) ? JSON.stringify(record.withdrawals) : currentWdrStr;
+            const newPayStr = Array.isArray(record.payments) ? JSON.stringify(record.payments) : currentPayStr;
+            const newMsgStr = Array.isArray(record.messages) ? JSON.stringify(record.messages) : currentMsgStr;
+            const newSettingsStr = record.settings && typeof record.settings === 'object' 
+              ? JSON.stringify({ ...this.getSettings(), ...record.settings }) 
+              : currentSettingsStr;
+
+            const changedKeys = [];
+            if (newUsersStr !== currentUsersStr) {
+              localStorage.setItem(STORAGE_KEYS.USERS, newUsersStr);
+              changedKeys.push('users');
             }
-            if (Array.isArray(record.tasks)) {
-              localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(record.tasks));
+            if (newTasksStr !== currentTasksStr) {
+              localStorage.setItem(STORAGE_KEYS.TASKS, newTasksStr);
+              changedKeys.push('tasks');
             }
-            if (Array.isArray(record.submissions)) {
-              localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(record.submissions));
+            if (newSubsStr !== currentSubsStr) {
+              localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, newSubsStr);
+              changedKeys.push('submissions');
             }
-            if (Array.isArray(record.withdrawals)) {
-              localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify(record.withdrawals));
+            if (newWdrStr !== currentWdrStr) {
+              localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, newWdrStr);
+              changedKeys.push('withdrawals');
             }
-            if (Array.isArray(record.payments)) {
-              localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(record.payments));
+            if (newPayStr !== currentPayStr) {
+              localStorage.setItem(STORAGE_KEYS.PAYMENTS, newPayStr);
+              changedKeys.push('payments');
             }
-            if (Array.isArray(record.messages)) {
-              localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(record.messages));
+            if (newMsgStr !== currentMsgStr) {
+              localStorage.setItem(STORAGE_KEYS.MESSAGES, newMsgStr);
+              changedKeys.push('messages');
             }
-            if (record.settings && typeof record.settings === 'object') {
-              const currentSettings = this.getSettings();
-              localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...currentSettings, ...record.settings }));
+            if (newSettingsStr !== currentSettingsStr) {
+              localStorage.setItem(STORAGE_KEYS.SETTINGS, newSettingsStr);
+              changedKeys.push('settings');
             }
 
             // Refresh current active user session if applicable
             const currentUser = this.getCurrentUser();
             if (currentUser && Array.isArray(record.users)) {
               const updatedProfile = record.users.find(u => u.id === currentUser.id);
-              if (updatedProfile) {
+              if (updatedProfile && JSON.stringify(updatedProfile) !== JSON.stringify(currentUser)) {
                 localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
               }
             }
-          }
 
-          this._cloudStatus.connected = true;
-          this._cloudStatus.lastSync = new Date().toISOString();
-          this._cloudStatus.error = null;
-          this._notifySync('pull', record);
-          return record;
+            this._cloudStatus.connected = true;
+            this._cloudStatus.lastSync = new Date().toISOString();
+            this._cloudStatus.error = null;
+
+            // Only trigger sync notifications if there are actual data changes or forced
+            if (changedKeys.length > 0 || force) {
+              this._notifySync('pull', { record, changedKeys });
+            }
+            return record;
+          }
         }
         return null;
       } catch (err) {

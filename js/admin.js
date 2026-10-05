@@ -64,20 +64,77 @@ function injectAdminSvgIcons() {
   }
 }
 
+function refreshAdminDataViews(changedKeys = null) {
+  updateMoreHubBadges();
+
+  const currentTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
+  const activeEl = document.activeElement;
+
+  if (currentTab === 'overview') {
+    renderOverviewStats();
+    renderRecentActivity();
+    const userSearch = document.getElementById('admUserSearchInput');
+    if (!activeEl || activeEl !== userSearch) {
+      renderAdminUsers();
+    }
+    renderPayInRecords();
+    const financialForm = document.getElementById('financialSettingsForm');
+    if (!activeEl || !financialForm || !financialForm.contains(activeEl)) {
+      loadFinancialSettings();
+    }
+  } else if (currentTab === 'financial') {
+    const financialForm = document.getElementById('financialSettingsForm');
+    const adminPassForm = document.getElementById('adminPasswordForm');
+    if (!activeEl || (!financialForm?.contains(activeEl) && !adminPassForm?.contains(activeEl))) {
+      loadFinancialSettings();
+    }
+    renderPayInRecords();
+    renderWithdrawalsQueue();
+  } else if (currentTab === 'tasks') {
+    const taskSearch = document.getElementById('admTaskSearchInput');
+    if (!activeEl || activeEl !== taskSearch) {
+      renderAdminTasks();
+    }
+  } else if (currentTab === 'more') {
+    const activeSubpage = document.querySelector('.more-subpage.active');
+    if (activeSubpage) {
+      const pageId = activeSubpage.id.replace('admMorePage-', '');
+      if (pageId === 'users') {
+        const fullUserSearch = document.getElementById('admFullUserSearchInput');
+        if (!activeEl || activeEl !== fullUserSearch) renderAdminUsers();
+      } else if (pageId === 'tasks-feed') {
+        renderRecentActivity();
+      } else if (pageId === 'pay-ins') {
+        const payInSearch = document.getElementById('admPayInSearchInputFull');
+        if (!activeEl || activeEl !== payInSearch) renderPayInRecords();
+      } else if (pageId === 'pending-withdrawals' || pageId === 'withdrawal-logs') {
+        const pendingSearch = document.getElementById('admPendingWithdrawalsSearchInputFull');
+        const logsSearch = document.getElementById('admWithdrawalLogsSearchInputFull');
+        if (!activeEl || (activeEl !== pendingSearch && activeEl !== logsSearch)) {
+          renderWithdrawalsQueue();
+        }
+      } else if (pageId === 'inbox') {
+        renderAdminConversationList();
+      }
+    }
+  }
+}
+
 function initAdminDashboard() {
   checkAdminAuth();
 
   if (window.TaskEarnDB && window.TaskEarnDB.onSync) {
-    window.TaskEarnDB.onSync((type) => {
+    window.TaskEarnDB.onSync((type, data) => {
       const badge = document.getElementById('cloudSyncStatusBadge');
       if (badge) {
         badge.textContent = 'JSONBin Connected';
         badge.className = 'badge badge-approved';
       }
+      // Ignore self-initiated pushes to prevent UI disruption
+      if (type === 'push') return;
+
       if (window.TaskEarnDB.isAdminLoggedIn()) {
-        const currentTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
-        switchAdminTab(currentTab, true);
-        updateMoreHubBadges();
+        refreshAdminDataViews(data?.changedKeys);
       }
     });
   }
@@ -230,7 +287,18 @@ function switchAdminTab(tabName, preserveSubpage = false) {
   }
 }
 
-function openMorePage(pageId) {
+let morePageReturnTab = null;
+
+function openMorePage(pageId, returnTab = null) {
+  if (returnTab) {
+    morePageReturnTab = returnTab;
+  } else {
+    const activeTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
+    if (activeTab !== 'more') {
+      morePageReturnTab = activeTab;
+    }
+  }
+
   switchAdminTab('more', true);
 
   const hub = document.getElementById('admMoreHubMenu');
@@ -274,6 +342,14 @@ function closeMorePage() {
     el.style.display = 'none';
     el.classList.remove('active');
   });
+
+  if (morePageReturnTab && morePageReturnTab !== 'more') {
+    const returnTarget = morePageReturnTab;
+    morePageReturnTab = null;
+    switchAdminTab(returnTarget);
+    return;
+  }
+
   const hub = document.getElementById('admMoreHubMenu');
   if (hub) {
     hub.style.display = 'block';
@@ -1229,48 +1305,116 @@ async function handleCreateTaskSubmit(event) {
 
 // =================== TAB 4: FINANCIALS & PAYOUTS ===================
 
-function loadFinancialSettings() {
+function loadFinancialSettings(force = false) {
+  // If the admin is actively typing into the settings form, do NOT overwrite their inputs
+  const activeEl = document.activeElement;
+  const financialForm = document.getElementById('financialSettingsForm');
+  if (!force && financialForm && activeEl && financialForm.contains(activeEl)) {
+    return;
+  }
+
   const settings = window.TaskEarnDB.getSettings();
-  document.getElementById('settingPointRate').value = settings.pointRateNaira;
-  document.getElementById('settingReferralPoints').value = settings.referralPoints;
-  document.getElementById('settingMinWithdrawal').value = settings.minWithdrawalNaira;
-  if (document.getElementById('settingVerificationFee')) {
-    document.getElementById('settingVerificationFee').value = settings.verificationFeeNaira ?? 100;
-  }
-  if (document.getElementById('settingPaystackKey')) {
-    document.getElementById('settingPaystackKey').value = settings.paystackPublicKey || 'pk_live_732d9b62cd035b8dad96e981d7f6982540342e80';
-  }
-  if (document.getElementById('settingAdminPhone')) {
-    document.getElementById('settingAdminPhone').value = settings.adminPhone || '08012345678';
-  }
-  if (document.getElementById('settingAdminEmail')) {
-    document.getElementById('settingAdminEmail').value = settings.adminEmail || 'admin@taskearn.com';
-  }
+  const pointRateInput = document.getElementById('settingPointRate');
+  if (pointRateInput) pointRateInput.value = settings.pointRateNaira;
+
+  const referralPointsInput = document.getElementById('settingReferralPoints');
+  if (referralPointsInput) referralPointsInput.value = settings.referralPoints;
+
+  const minWithdrawalInput = document.getElementById('settingMinWithdrawal');
+  if (minWithdrawalInput) minWithdrawalInput.value = settings.minWithdrawalNaira;
+
+  const verificationFeeInput = document.getElementById('settingVerificationFee');
+  if (verificationFeeInput) verificationFeeInput.value = settings.verificationFeeNaira ?? 100;
+
+  const paystackKeyInput = document.getElementById('settingPaystackKey');
+  if (paystackKeyInput) paystackKeyInput.value = settings.paystackPublicKey || 'pk_live_732d9b62cd035b8dad96e981d7f6982540342e80';
+
+  const adminPhoneInput = document.getElementById('settingAdminPhone');
+  if (adminPhoneInput) adminPhoneInput.value = settings.adminPhone || '08012345678';
+
+  const adminEmailInput = document.getElementById('settingAdminEmail');
+  if (adminEmailInput) adminEmailInput.value = settings.adminEmail || 'admin@taskearn.com';
 }
 
 async function handleSaveFinancialSettings(event) {
   event.preventDefault();
-  const pointRateNaira = parseFloat(document.getElementById('settingPointRate').value);
-  const referralPoints = parseInt(document.getElementById('settingReferralPoints').value, 10);
-  const minWithdrawalNaira = parseFloat(document.getElementById('settingMinWithdrawal').value);
-  const verificationFeeNaira = parseFloat(document.getElementById('settingVerificationFee').value) || 100;
-  const paystackPublicKey = document.getElementById('settingPaystackKey').value.trim();
+  const pointRateNaira = parseFloat(document.getElementById('settingPointRate')?.value);
+  const referralPoints = parseInt(document.getElementById('settingReferralPoints')?.value, 10);
+  const minWithdrawalNaira = parseFloat(document.getElementById('settingMinWithdrawal')?.value);
+  const verificationFeeNaira = parseFloat(document.getElementById('settingVerificationFee')?.value);
+  const paystackPublicKey = (document.getElementById('settingPaystackKey')?.value || '').trim();
   const adminPhoneInput = (document.getElementById('settingAdminPhone')?.value || '').trim();
   const adminEmailInput = (document.getElementById('settingAdminEmail')?.value || '').trim();
   const alertEl = document.getElementById('financialSettingsAlert');
   const btn = event.target.querySelector('button[type="submit"]');
   const origText = btn ? btn.textContent : '';
 
-  let adminPhone = undefined;
+  if (isNaN(pointRateNaira) || pointRateNaira <= 0) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Please enter a valid Point to Naira rate (must be greater than 0).';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (isNaN(referralPoints) || referralPoints < 0) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Referral points reward must be 0 or greater.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (isNaN(minWithdrawalNaira) || minWithdrawalNaira < 100) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Minimum withdrawal amount must be at least ₦100.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (isNaN(verificationFeeNaira) || verificationFeeNaira < 0) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Account verification fee must be 0 or greater.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (!paystackPublicKey) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Paystack public key is required.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  let adminPhone = '';
   if (adminPhoneInput) {
     const cleanAdminPhone = adminPhoneInput.replace(/[\s-]/g, '');
     if (!/^\d{11}$/.test(cleanAdminPhone)) {
-      alertEl.className = 'alert alert-error';
-      alertEl.textContent = 'Admin support phone number must be exactly 11 digits (e.g. 08012345678).';
-      alertEl.style.display = 'block';
+      if (alertEl) {
+        alertEl.className = 'alert alert-error';
+        alertEl.textContent = 'Admin support phone number must be exactly 11 digits (e.g. 08012345678).';
+        alertEl.style.display = 'block';
+      }
       return;
     }
     adminPhone = cleanAdminPhone;
+  }
+
+  if (adminEmailInput && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmailInput)) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Please enter a valid administrator email address.';
+      alertEl.style.display = 'block';
+    }
+    return;
   }
 
   const updates = {
@@ -1278,10 +1422,10 @@ async function handleSaveFinancialSettings(event) {
     referralPoints,
     minWithdrawalNaira,
     verificationFeeNaira,
-    paystackPublicKey
+    paystackPublicKey,
+    adminPhone,
+    adminEmail: adminEmailInput
   };
-  if (adminPhone) updates.adminPhone = adminPhone;
-  if (adminEmailInput) updates.adminEmail = adminEmailInput;
 
   try {
     if (btn) {
@@ -1294,18 +1438,22 @@ async function handleSaveFinancialSettings(event) {
       await window.TaskEarnDB.pushToCloud();
     }
 
-    alertEl.className = 'alert alert-success';
-    alertEl.textContent = 'Settings and administrative contact info updated successfully and saved to cloud!';
-    alertEl.style.display = 'block';
-    setTimeout(() => alertEl.style.display = 'none', 3000);
+    if (alertEl) {
+      alertEl.className = 'alert alert-success';
+      alertEl.textContent = 'Settings and administrative contact info updated successfully and saved to cloud!';
+      alertEl.style.display = 'block';
+      setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 3000);
+    }
 
     renderOverviewStats();
     renderPayInRecords();
     renderWithdrawalsQueue();
   } catch (err) {
-    alertEl.className = 'alert alert-error';
-    alertEl.textContent = err.message;
-    alertEl.style.display = 'block';
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = err.message;
+      alertEl.style.display = 'block';
+    }
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -1692,6 +1840,18 @@ async function handleReviewWithdrawal(withdrawalId, status) {
     );
     if (promptResult === null) return;
     reason = promptResult.trim() || 'Incorrect bank details.';
+  } else if (status === 'approved') {
+    const wdr = window.TaskEarnDB.getWithdrawals().find(w => w.id === withdrawalId);
+    const amountStr = wdr ? `₦${Number(wdr.amountNaira || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : 'this payout';
+    const recipientStr = wdr ? `${wdr.userName || 'user'} (${wdr.bankName || ''} - ${wdr.accountNumber || ''})` : '';
+    const confirmed = await window.showCustomConfirm(
+      `Are you sure you want to approve ${amountStr} for ${recipientStr}? Please ensure you have transferred the funds to their bank account.`,
+      {
+        title: 'Approve Payout',
+        confirmText: 'Yes, Approve Payout'
+      }
+    );
+    if (!confirmed) return;
   }
   window.TaskEarnDB.reviewWithdrawal(withdrawalId, status, reason);
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
