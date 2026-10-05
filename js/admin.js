@@ -143,6 +143,9 @@ async function handleAdminLoginSubmit(event) {
 
 function handleAdminLogout() {
   window.TaskEarnDB.logoutAdmin();
+  if (document.body) {
+    document.body.classList.remove('adm-subpage-active', 'adm-inbox-active');
+  }
   try {
     localStorage.removeItem('taskearn_admin_active_tab');
     history.replaceState(null, '', window.location.pathname);
@@ -153,6 +156,12 @@ function handleAdminLogout() {
 function switchAdminTab(tabName, preserveSubpage = false) {
   const tabs = ['overview', 'tasks', 'create-task', 'financial', 'more'];
   if (!tabs.includes(tabName)) tabName = 'overview';
+
+  if (tabName !== 'more' || !preserveSubpage) {
+    if (document.body) {
+      document.body.classList.remove('adm-subpage-active', 'adm-inbox-active');
+    }
+  }
 
   try {
     localStorage.setItem('taskearn_admin_active_tab', tabName);
@@ -226,6 +235,11 @@ function openMorePage(pageId) {
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  if (document.body) {
+    document.body.classList.add('adm-subpage-active');
+    document.body.classList.toggle('adm-inbox-active', pageId === 'inbox');
+  }
+
   // Refresh relevant data
   if (pageId === 'users') {
     renderAdminUsers();
@@ -241,6 +255,9 @@ function openMorePage(pageId) {
 }
 
 function closeMorePage() {
+  if (document.body) {
+    document.body.classList.remove('adm-subpage-active', 'adm-inbox-active');
+  }
   document.querySelectorAll('.more-subpage').forEach(el => el.style.display = 'none');
   const hub = document.getElementById('admMoreHubMenu');
   if (hub) {

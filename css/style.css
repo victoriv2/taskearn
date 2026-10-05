@@ -1090,6 +1090,180 @@ tr:hover td {
   }
 }
 
+/* ==========================================================================
+   Admin More Subpages Full-Bleed Layout (Zero Spacing, Fits Top to Bottom)
+   ========================================================================== */
+
+@media (max-width: 991px) {
+  body.adm-subpage-active .content-container {
+    padding: 0 !important;
+    padding-bottom: calc(var(--bottom-nav-height) + 16px) !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  body.adm-subpage-active .more-subpage.card {
+    border-radius: 0 !important;
+    border: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 14px 14px 20px 14px !important;
+    min-height: calc(100vh - var(--header-height) - var(--bottom-nav-height)) !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.adm-subpage-active .more-subpage .card-header {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    background-color: var(--bg-surface);
+    padding: 4px 0 10px 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  body.adm-subpage-active .more-subpage .table-responsive {
+    margin-left: -14px !important;
+    margin-right: -14px !important;
+    width: calc(100% + 28px) !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  /* Support Inbox Full-Bleed Mobile Fit (Exact parity with User Messages) */
+  body.adm-inbox-active {
+    overflow: hidden !important;
+  }
+
+  body.adm-inbox-active .content-container {
+    padding: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  body.adm-inbox-active #admMorePage-inbox {
+    position: fixed !important;
+    top: var(--header-height) !important;
+    bottom: var(--bottom-nav-height) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    z-index: 45 !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.adm-inbox-active #admMoreInboxHeader {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 10px 14px !important;
+    margin: 0 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    flex-shrink: 0 !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.adm-inbox-active #admInboxLayout {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+
+  body.adm-inbox-active .inbox-conversations-panel {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 12px 14px !important;
+    margin: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.adm-inbox-active .inbox-layout.viewing-chat .inbox-conversations-panel {
+    display: none !important;
+  }
+
+  body.adm-inbox-active .inbox-layout.viewing-list .inbox-chat-panel {
+    display: none !important;
+  }
+
+  body.adm-inbox-active .inbox-layout.viewing-chat .inbox-chat-panel {
+    display: flex !important;
+    flex: 1 !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    width: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.adm-inbox-active .inbox-chat-panel .chat-header {
+    border-radius: 0 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    flex-shrink: 0 !important;
+    padding: 10px 16px !important;
+    background-color: var(--bg-surface) !important;
+  }
+
+  body.adm-inbox-active .inbox-chat-panel .chat-messages {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 14px 14px !important;
+    background-color: #fafbfc !important;
+  }
+
+  body.adm-inbox-active .inbox-chat-panel .chat-input-bar {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: 1px solid var(--border-color) !important;
+    padding: 10px 14px !important;
+    background-color: var(--bg-surface) !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    position: relative !important;
+    z-index: 10 !important;
+  }
+
+  body.adm-inbox-active .inbox-chat-panel .chat-input-bar input {
+    padding: 9px 12px !important;
+    font-size: 0.9rem !important;
+  }
+}
+
 /* Responsive Form Grids */
 .grid-responsive-3 {
   display: grid;
