@@ -164,15 +164,40 @@ function checkAuth() {
     if (appScreen) appScreen.style.display = 'flex';
     updateWalletHeader();
 
-    const tabs = ['tasks', 'withdrawals', 'messages', 'referrals', 'more'];
+    const USER_TABS = ['tasks', 'withdrawals', 'messages', 'referrals', 'more'];
+    const USER_ROUTE_ALIASES = {
+      'task': 'tasks',
+      'earn': 'tasks',
+      'jobs': 'tasks',
+      'withdraw': 'withdrawals',
+      'withdrawal': 'withdrawals',
+      'payout': 'withdrawals',
+      'payouts': 'withdrawals',
+      'cashout': 'withdrawals',
+      'chat': 'messages',
+      'support': 'messages',
+      'inbox': 'messages',
+      'message': 'messages',
+      'referral': 'referrals',
+      'invite': 'referrals',
+      'ref': 'referrals',
+      'affiliate': 'referrals',
+      'profile': 'more',
+      'settings': 'more',
+      'account': 'more'
+    };
+
     let savedTab = '';
-    const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
-    if (tabs.includes(hash)) {
-      savedTab = hash;
+    const rawHash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+    const mappedHash = USER_ROUTE_ALIASES[rawHash] || rawHash;
+
+    if (USER_TABS.includes(mappedHash)) {
+      savedTab = mappedHash;
     } else {
-      savedTab = localStorage.getItem('taskearn_user_active_tab') || 'tasks';
+      const storedTab = localStorage.getItem('taskearn_user_active_tab') || 'tasks';
+      const mappedStored = USER_ROUTE_ALIASES[storedTab] || storedTab;
+      savedTab = USER_TABS.includes(mappedStored) ? mappedStored : 'tasks';
     }
-    if (!tabs.includes(savedTab)) savedTab = 'tasks';
 
     switchUserTab(savedTab);
   }
@@ -544,19 +569,41 @@ function switchUserTab(tabName) {
 }
 
 window.addEventListener('hashchange', () => {
-  const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
+  const rawHash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
   if (!activeUser) {
-    if (hash === 'signup') {
+    if (rawHash === 'signup') {
       toggleAuthForm('signup', false);
-    } else if (hash === 'login') {
+    } else if (rawHash === 'login') {
       toggleAuthForm('login', false);
     }
     return;
   }
   if (!activeUser.isVerified) return;
-  const tabs = ['tasks', 'withdrawals', 'messages', 'referrals', 'more'];
-  if (tabs.includes(hash)) {
-    switchUserTab(hash);
+  const USER_TABS = ['tasks', 'withdrawals', 'messages', 'referrals', 'more'];
+  const USER_ROUTE_ALIASES = {
+    'task': 'tasks',
+    'earn': 'tasks',
+    'jobs': 'tasks',
+    'withdraw': 'withdrawals',
+    'withdrawal': 'withdrawals',
+    'payout': 'withdrawals',
+    'payouts': 'withdrawals',
+    'cashout': 'withdrawals',
+    'chat': 'messages',
+    'support': 'messages',
+    'inbox': 'messages',
+    'message': 'messages',
+    'referral': 'referrals',
+    'invite': 'referrals',
+    'ref': 'referrals',
+    'affiliate': 'referrals',
+    'profile': 'more',
+    'settings': 'more',
+    'account': 'more'
+  };
+  const targetTab = USER_ROUTE_ALIASES[rawHash] || rawHash;
+  if (USER_TABS.includes(targetTab)) {
+    switchUserTab(targetTab);
   }
 });
 

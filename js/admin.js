@@ -143,6 +143,45 @@ function initAdminDashboard() {
   }
 }
 
+const ADMIN_TABS = ['overview', 'tasks', 'create-task', 'financial', 'more'];
+const ADMIN_SUBPAGES = [
+  'users',
+  'tasks-feed',
+  'pay-ins',
+  'pending-withdrawals',
+  'withdrawal-logs',
+  'inbox',
+  'cloud-sync'
+];
+const ADMIN_ROUTE_ALIASES = {
+  'payouts': 'pending-withdrawals',
+  'pending-payouts': 'pending-withdrawals',
+  'withdrawals': 'pending-withdrawals',
+  'withdrawal': 'pending-withdrawals',
+  'logs': 'withdrawal-logs',
+  'payout-logs': 'withdrawal-logs',
+  'history': 'withdrawal-logs',
+  'members': 'users',
+  'user-list': 'users',
+  'activity': 'tasks-feed',
+  'feed': 'tasks-feed',
+  'completions': 'tasks-feed',
+  'recent': 'tasks-feed',
+  'payments': 'pay-ins',
+  'verifications': 'pay-ins',
+  'chat': 'inbox',
+  'messages': 'inbox',
+  'support': 'inbox',
+  'sync': 'cloud-sync',
+  'backup': 'cloud-sync',
+  'create': 'create-task',
+  'new-task': 'create-task',
+  'finance': 'financial',
+  'settings': 'financial',
+  'home': 'overview',
+  'dashboard': 'overview'
+};
+
 function checkAdminAuth() {
   const isAuth = window.TaskEarnDB.isAdminLoggedIn();
   const authScreen = document.getElementById('admAuthScreen');
@@ -155,17 +194,44 @@ function checkAdminAuth() {
     authScreen.style.display = 'none';
     dashboard.style.display = 'flex';
 
-    const tabs = ['overview', 'tasks', 'create-task', 'financial', 'more'];
-    let savedTab = '';
-    const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
-    if (tabs.includes(hash)) {
-      savedTab = hash;
-    } else {
-      savedTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
-    }
-    if (!tabs.includes(savedTab)) savedTab = 'overview';
+    const rawHash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+    const mappedHash = ADMIN_ROUTE_ALIASES[rawHash] || rawHash;
 
-    switchAdminTab(savedTab);
+    const savedSubpage = localStorage.getItem('taskearn_admin_active_subpage');
+    const savedReturnTab = localStorage.getItem('taskearn_admin_more_return_tab');
+
+    // 1. Determine if opening a subpage
+    if (ADMIN_SUBPAGES.includes(mappedHash)) {
+      openMorePage(mappedHash, savedReturnTab);
+    } else if (savedSubpage && ADMIN_SUBPAGES.includes(savedSubpage) && (mappedHash === 'more' || !mappedHash)) {
+      openMorePage(savedSubpage, savedReturnTab);
+    } else {
+      // 2. Otherwise opening a main tab
+      let targetTab = mappedHash;
+      if (!ADMIN_TABS.includes(targetTab)) {
+        targetTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
+      }
+      if (!ADMIN_TABS.includes(targetTab)) {
+        targetTab = 'overview';
+      }
+      switchAdminTab(targetTab);
+    }
+
+    // 3. Restore chat user if in inbox
+    const currentSubpage = localStorage.getItem('taskearn_admin_active_subpage');
+    if (currentSubpage === 'inbox' || mappedHash === 'inbox') {
+      const savedChatUser = localStorage.getItem('taskearn_admin_active_chat_user');
+      if (savedChatUser && window.TaskEarnDB.getUserById(savedChatUser)) {
+        selectUserForAdminChat(savedChatUser);
+      }
+    }
+
+    // 4. Restore open user drawer if drawer was open
+    const savedDrawerUser = localStorage.getItem('taskearn_admin_active_drawer_user');
+    if (savedDrawerUser && window.TaskEarnDB.getUserById(savedDrawerUser)) {
+      openUserDrawer(savedDrawerUser);
+    }
+
     updateMoreHubBadges();
     updateAdminTabIndicators();
   }
@@ -209,6 +275,10 @@ function handleAdminLogout() {
   }
   try {
     localStorage.removeItem('taskearn_admin_active_tab');
+    localStorage.removeItem('taskearn_admin_active_subpage');
+    localStorage.removeItem('taskearn_admin_active_chat_user');
+    localStorage.removeItem('taskearn_admin_active_drawer_user');
+    localStorage.removeItem('taskearn_admin_more_return_tab');
     history.replaceState(null, '', window.location.pathname);
   } catch (e) {}
   checkAdminAuth();
@@ -228,11 +298,18 @@ function switchAdminTab(tabName, preserveSubpage = false) {
     });
     const hub = document.getElementById('admMoreHubMenu');
     if (hub) hub.style.display = 'block';
+
+    try {
+      localStorage.removeItem('taskearn_admin_active_subpage');
+      localStorage.removeItem('taskearn_admin_active_chat_user');
+    } catch (e) {}
   }
 
   try {
     localStorage.setItem('taskearn_admin_active_tab', tabName);
-    history.replaceState(null, '', '#' + tabName);
+    if (!preserveSubpage) {
+      history.replaceState(null, '', '#' + tabName);
+    }
   } catch (e) {}
 
   tabs.forEach(tab => {
@@ -295,12 +372,21 @@ function switchAdminTab(tabName, preserveSubpage = false) {
 let morePageReturnTab = null;
 
 function openMorePage(pageId, returnTab = null) {
+  const normalizedPageId = ADMIN_ROUTE_ALIASES[pageId] || pageId;
+  if (!ADMIN_SUBPAGES.includes(normalizedPageId)) return;
+
   if (returnTab) {
     morePageReturnTab = returnTab;
+    try {
+      localStorage.setItem('taskearn_admin_more_return_tab', returnTab);
+    } catch (e) {}
   } else {
     const activeTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
     if (activeTab !== 'more') {
       morePageReturnTab = activeTab;
+      try {
+        localStorage.setItem('taskearn_admin_more_return_tab', activeTab);
+      } catch (e) {}
     }
   }
 
@@ -314,7 +400,7 @@ function openMorePage(pageId, returnTab = null) {
     el.classList.remove('active');
   });
 
-  const target = document.getElementById(`admMorePage-${pageId}`);
+  const target = document.getElementById(`admMorePage-${normalizedPageId}`);
   if (target) {
     target.classList.add('active');
     target.style.display = 'flex';
@@ -322,19 +408,24 @@ function openMorePage(pageId, returnTab = null) {
 
   if (document.body) {
     document.body.classList.add('adm-subpage-active');
-    document.body.classList.toggle('adm-inbox-active', pageId === 'inbox');
+    document.body.classList.toggle('adm-inbox-active', normalizedPageId === 'inbox');
   }
 
+  try {
+    localStorage.setItem('taskearn_admin_active_subpage', normalizedPageId);
+    history.replaceState(null, '', '#' + normalizedPageId);
+  } catch (e) {}
+
   // Refresh relevant data
-  if (pageId === 'users') {
+  if (normalizedPageId === 'users') {
     renderAdminUsers();
-  } else if (pageId === 'tasks-feed') {
+  } else if (normalizedPageId === 'tasks-feed') {
     renderRecentActivity();
-  } else if (pageId === 'pay-ins') {
+  } else if (normalizedPageId === 'pay-ins') {
     renderPayInRecords();
-  } else if (pageId === 'pending-withdrawals' || pageId === 'withdrawal-logs') {
+  } else if (normalizedPageId === 'pending-withdrawals' || normalizedPageId === 'withdrawal-logs') {
     renderWithdrawalsQueue();
-  } else if (pageId === 'inbox') {
+  } else if (normalizedPageId === 'inbox') {
     renderAdminConversationList();
   }
 }
@@ -348,9 +439,18 @@ function closeMorePage() {
     el.classList.remove('active');
   });
 
-  if (morePageReturnTab && morePageReturnTab !== 'more') {
-    const returnTarget = morePageReturnTab;
-    morePageReturnTab = null;
+  try {
+    localStorage.removeItem('taskearn_admin_active_subpage');
+    localStorage.removeItem('taskearn_admin_active_chat_user');
+  } catch (e) {}
+
+  const returnTarget = morePageReturnTab || localStorage.getItem('taskearn_admin_more_return_tab');
+  morePageReturnTab = null;
+  try {
+    localStorage.removeItem('taskearn_admin_more_return_tab');
+  } catch (e) {}
+
+  if (returnTarget && returnTarget !== 'more') {
     switchAdminTab(returnTarget);
     return;
   }
@@ -360,6 +460,10 @@ function closeMorePage() {
     hub.style.display = 'block';
     hub.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+  try {
+    localStorage.setItem('taskearn_admin_active_tab', 'more');
+    history.replaceState(null, '', '#more');
+  } catch (e) {}
   updateMoreHubBadges();
 }
 
@@ -458,10 +562,14 @@ window.updateAdminTabIndicators = updateAdminTabIndicators;
 
 window.addEventListener('hashchange', () => {
   if (!window.TaskEarnDB.isAdminLoggedIn()) return;
-  const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
-  const tabs = ['overview', 'tasks', 'create-task', 'financial', 'more'];
-  if (tabs.includes(hash)) {
-    switchAdminTab(hash);
+  const rawHash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+  if (!rawHash) return;
+  const mapped = ADMIN_ROUTE_ALIASES[rawHash] || rawHash;
+
+  if (ADMIN_SUBPAGES.includes(mapped)) {
+    openMorePage(mapped);
+  } else if (ADMIN_TABS.includes(mapped)) {
+    switchAdminTab(mapped);
   }
 });
 
@@ -744,11 +852,18 @@ function renderAdminUsers() {
 function openUserDrawer(userId) {
   const user = window.TaskEarnDB.getUserById(userId);
   if (!user) {
+    try {
+      localStorage.removeItem('taskearn_admin_active_drawer_user');
+    } catch (e) {}
     if (typeof showToast === 'function') {
       showToast('User account not found', 'warning');
     }
     return;
   }
+
+  try {
+    localStorage.setItem('taskearn_admin_active_drawer_user', userId);
+  } catch (e) {}
 
   const submissions = window.TaskEarnDB.getUserSubmissions(userId);
   const settings = window.TaskEarnDB.getSettings();
@@ -1045,6 +1160,9 @@ async function handleToggleUserVerification(userId, newVerifiedState) {
 
 function closeUserDrawer() {
   document.getElementById('userDrawer').classList.remove('open');
+  try {
+    localStorage.removeItem('taskearn_admin_active_drawer_user');
+  } catch (e) {}
 }
 
 async function handleDrawerPointsAdjustment(userId) {
@@ -2446,15 +2564,27 @@ function renderAdminConversationList() {
     `;
   }).join('');
 
-  // Auto-select on desktop only if nothing currently selected
-  if (!selectedUserForChat && displayedUsers.length > 0 && window.innerWidth >= 900) {
+  // Auto-select saved conversation or first conversation on desktop
+  const savedChatUserId = localStorage.getItem('taskearn_admin_active_chat_user');
+  if (!selectedUserForChat && savedChatUserId && displayedUsers.some(u => u.id === savedChatUserId)) {
+    selectUserForAdminChat(savedChatUserId);
+  } else if (!selectedUserForChat && displayedUsers.length > 0 && window.innerWidth >= 900) {
     selectUserForAdminChat(displayedUsers[0].id);
   }
 }
 
 function selectUserForAdminChat(userId) {
   selectedUserForChat = window.TaskEarnDB.getUserById(userId);
-  if (!selectedUserForChat) return;
+  if (!selectedUserForChat) {
+    try {
+      localStorage.removeItem('taskearn_admin_active_chat_user');
+    } catch (e) {}
+    return;
+  }
+
+  try {
+    localStorage.setItem('taskearn_admin_active_chat_user', userId);
+  } catch (e) {}
 
   const headerAvatar = document.getElementById('admChatCurrentUserAvatar');
   if (headerAvatar) {
@@ -2481,6 +2611,10 @@ function selectUserForAdminChat(userId) {
 }
 
 function backToConversationList() {
+  selectedUserForChat = null;
+  try {
+    localStorage.removeItem('taskearn_admin_active_chat_user');
+  } catch (e) {}
   const inboxLayout = document.getElementById('admInboxLayout');
   if (inboxLayout) {
     inboxLayout.classList.remove('viewing-chat');
