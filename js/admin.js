@@ -49,6 +49,8 @@ function injectAdminSvgIcons() {
   setIcon('admHeaderLogoutIcon', window.ICONS.logout);
   setIcon('iconCloseDrawer', window.ICONS.close);
   setIcon('iconCloseEditModal', window.ICONS.close);
+  setIcon('iconCloseNewChatModal', window.ICONS.close);
+  setIcon('admNewChatSearchIcon', window.ICONS.search);
 
   // More Hub Navigation Icons
   setIcon('hubIconUsers', window.ICONS.users || window.ICONS.referral);
@@ -66,6 +68,7 @@ function injectAdminSvgIcons() {
 
 function refreshAdminDataViews(changedKeys = null) {
   updateMoreHubBadges();
+  updateAdminTabIndicators();
 
   const currentTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
   const activeEl = document.activeElement;
@@ -164,6 +167,7 @@ function checkAdminAuth() {
 
     switchAdminTab(savedTab);
     updateMoreHubBadges();
+    updateAdminTabIndicators();
   }
 }
 
@@ -285,6 +289,7 @@ function switchAdminTab(tabName, preserveSubpage = false) {
       renderAdminConversationList();
     }
   }
+  updateAdminTabIndicators();
 }
 
 let morePageReturnTab = null;
@@ -395,6 +400,61 @@ function updateMoreHubBadges() {
 window.openMorePage = openMorePage;
 window.closeMorePage = closeMorePage;
 window.updateMoreHubBadges = updateMoreHubBadges;
+
+function updateAdminTabIndicators() {
+  if (!window.TaskEarnDB || !window.TaskEarnDB.isAdminLoggedIn()) return;
+
+  const unreadMessagesCount = window.TaskEarnDB.getUnreadMessageCountForAdmin ? window.TaskEarnDB.getUnreadMessageCountForAdmin() : 0;
+  const pendingPayoutsCount = window.TaskEarnDB.getPendingWithdrawalsCount ? window.TaskEarnDB.getPendingWithdrawalsCount() : 0;
+
+  const msgBadgeText = window.TaskEarnDB.formatBadgeCount(unreadMessagesCount);
+  const payoutBadgeText = window.TaskEarnDB.formatBadgeCount(pendingPayoutsCount);
+
+  // Financial Tab Badges (Pending Payouts)
+  const dFinanceBadge = document.getElementById('admDBadgeFinance');
+  const mFinanceBadge = document.getElementById('mAdmBadgeFinance');
+  [dFinanceBadge, mFinanceBadge].forEach(el => {
+    if (el) {
+      if (payoutBadgeText) {
+        el.textContent = payoutBadgeText;
+        el.style.display = 'inline-flex';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    }
+  });
+
+  // More Tab Badges (Unread Messages from Users)
+  const dMoreBadge = document.getElementById('admDBadgeMore');
+  const mMoreBadge = document.getElementById('mAdmBadgeMore');
+  [dMoreBadge, mMoreBadge].forEach(el => {
+    if (el) {
+      if (msgBadgeText) {
+        el.textContent = msgBadgeText;
+        el.style.display = 'inline-flex';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    }
+  });
+
+  // Also update hub inbox badge
+  const hubInboxBadge = document.getElementById('hubInboxBadge');
+  if (hubInboxBadge) {
+    if (unreadMessagesCount > 0) {
+      hubInboxBadge.textContent = `${msgBadgeText} Unread`;
+      hubInboxBadge.className = 'badge badge-approved';
+    } else {
+      const messages = window.TaskEarnDB.getMessages ? window.TaskEarnDB.getMessages() : [];
+      const uniqueConvs = new Set(messages.map(m => m.userId)).size;
+      hubInboxBadge.textContent = `${uniqueConvs} Chats`;
+      hubInboxBadge.className = 'badge badge-active';
+    }
+  }
+}
+window.updateAdminTabIndicators = updateAdminTabIndicators;
 
 window.addEventListener('hashchange', () => {
   if (!window.TaskEarnDB.isAdminLoggedIn()) return;
@@ -1924,9 +1984,84 @@ async function handleReviewWithdrawal(withdrawalId, status) {
   }
   renderWithdrawalsQueue();
   renderOverviewStats();
+  updateAdminTabIndicators();
 }
 
 // =================== TAB 5: MORE & SUPPORT INBOX ===================
+
+function openAdminNewChatModal() {
+  const modal = document.getElementById('admNewChatModal');
+  if (!modal) return;
+  const searchInput = document.getElementById('admNewChatSearchInput');
+  if (searchInput) searchInput.value = '';
+  modal.classList.add('open');
+  renderAdminNewChatUserList();
+}
+
+function closeAdminNewChatModal() {
+  const modal = document.getElementById('admNewChatModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function renderAdminNewChatUserList() {
+  const container = document.getElementById('admNewChatUserList');
+  if (!container) return;
+  const users = window.TaskEarnDB.getUsers();
+  const searchInput = document.getElementById('admNewChatSearchInput');
+  const query = (searchInput?.value || '').toLowerCase().trim();
+
+  let filtered = users;
+  if (query) {
+    filtered = users.filter(u => {
+      const name = `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}`.toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const phone = (u.phone || '').toLowerCase();
+      return name.includes(query) || email.includes(query) || phone.includes(query);
+    });
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.85rem;">No members match "${escapeHtml(query)}".</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(u => {
+    return `
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg-subtle); border-radius: var(--radius-md); border: 1px solid var(--border-color); cursor: pointer;" onclick="startAdminChatWithUser('${u.id}')">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+          <div style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
+            ${u.avatar ? `<img src="${u.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (u.firstName ? u.firstName[0].toUpperCase() : 'U')}
+          </div>
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+              ${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}
+              ${u.username ? `<span style="font-weight: 500; font-size: 0.78rem; color: var(--primary-blue); margin-left: 4px;">@${escapeHtml(u.username)}</span>` : ''}
+            </div>
+            <div style="font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+              ${escapeHtml(u.email)}
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 0.72rem; flex-shrink: 0; margin-left: 8px;">
+          Message
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function startAdminChatWithUser(userId) {
+  closeAdminNewChatModal();
+  selectUserForAdminChat(userId);
+  renderAdminConversationList();
+  const textInput = document.getElementById('admChatTextInput');
+  if (textInput) textInput.focus();
+}
+
+window.openAdminNewChatModal = openAdminNewChatModal;
+window.closeAdminNewChatModal = closeAdminNewChatModal;
+window.renderAdminNewChatUserList = renderAdminNewChatUserList;
+window.startAdminChatWithUser = startAdminChatWithUser;
 
 function renderAdminConversationList() {
   const users = window.TaskEarnDB.getUsers();
@@ -1934,26 +2069,36 @@ function renderAdminConversationList() {
   const container = document.getElementById('admConversationList');
   if (!container) return;
 
-  const userMap = {};
+  const userLastMsgMap = {};
+  const userUnreadMap = {};
   allMessages.forEach(m => {
-    userMap[m.userId] = true;
+    if (!userLastMsgMap[m.userId] || new Date(m.createdAt) > new Date(userLastMsgMap[m.userId].createdAt)) {
+      userLastMsgMap[m.userId] = m;
+    }
+    if (m.sender === 'user' && !m.read) {
+      userUnreadMap[m.userId] = (userUnreadMap[m.userId] || 0) + 1;
+    }
   });
 
-  const chatUsers = users.filter(u => userMap[u.id]);
+  // Users who have messages OR the currently selected user
+  const chatUsers = users.filter(u => userLastMsgMap[u.id] || (selectedUserForChat && selectedUserForChat.id === u.id));
+
+  // Sort chat users by latest message date
+  chatUsers.sort((a, b) => {
+    const timeA = userLastMsgMap[a.id] ? new Date(userLastMsgMap[a.id].createdAt).getTime() : 0;
+    const timeB = userLastMsgMap[b.id] ? new Date(userLastMsgMap[b.id].createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+
   const convCountBadge = document.getElementById('admInboxConvCountBadge');
-
-  if (chatUsers.length === 0) {
-    if (convCountBadge) convCountBadge.textContent = '0';
-    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 12px; text-align: center;">No active conversations yet.</div>`;
-    return;
-  }
-
   const searchInput = document.getElementById('admInboxSearchInput');
   const query = (searchInput?.value || '').toLowerCase().trim();
 
-  let filteredUsers = chatUsers;
+  let displayedUsers = chatUsers;
+
+  // When admin searches, search ALL registered users so they can message anyone
   if (query) {
-    filteredUsers = chatUsers.filter(u => {
+    displayedUsers = users.filter(u => {
       const name = `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}`.toLowerCase();
       const email = (u.email || '').toLowerCase();
       const phone = (u.phone || '').toLowerCase();
@@ -1962,32 +2107,60 @@ function renderAdminConversationList() {
   }
 
   if (convCountBadge) {
-    convCountBadge.textContent = query ? `${filteredUsers.length}/${chatUsers.length}` : `${chatUsers.length}`;
+    convCountBadge.textContent = query ? `${displayedUsers.length}` : `${chatUsers.length}`;
   }
 
-  if (filteredUsers.length === 0) {
-    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 12px; text-align: center;">No conversations match "${escapeHtml(query)}".</div>`;
+  if (displayedUsers.length === 0) {
+    if (query) {
+      container.innerHTML = `
+        <div style="color: var(--text-muted); font-size: 0.85rem; padding: 20px 12px; text-align: center;">
+          No members match "${escapeHtml(query)}".
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div style="color: var(--text-muted); font-size: 0.85rem; padding: 20px 12px; text-align: center;">
+          <div style="font-weight: 600; color: var(--text-main); margin-bottom: 6px;">No conversations yet</div>
+          <p style="font-size: 0.8rem; margin-bottom: 12px;">Start a direct message with any member.</p>
+          <button type="button" class="btn btn-primary btn-sm" onclick="openAdminNewChatModal()">
+            + Start Conversation
+          </button>
+        </div>
+      `;
+    }
     return;
   }
 
-  container.innerHTML = filteredUsers.map(u => {
+  container.innerHTML = displayedUsers.map(u => {
     const isSelected = selectedUserForChat && selectedUserForChat.id === u.id;
+    const unreadCount = userUnreadMap[u.id] || 0;
+    const lastMsg = userLastMsgMap[u.id];
+    const unreadBadgeText = window.TaskEarnDB.formatBadgeCount(unreadCount);
+
     return `
-      <div style="padding: 10px 12px; border-radius: var(--radius-md); background-color: ${isSelected ? 'var(--primary-green-light)' : 'var(--bg-subtle)'}; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="selectUserForAdminChat('${u.id}')">
+      <div style="padding: 10px 12px; border-radius: var(--radius-md); background-color: ${isSelected ? 'var(--primary-green-light)' : 'var(--bg-subtle)'}; cursor: pointer; display: flex; align-items: center; gap: 10px; border: 1px solid ${isSelected ? 'var(--primary-green)' : 'transparent'}; position: relative;" onclick="selectUserForAdminChat('${u.id}')">
         <div style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
           ${u.avatar ? `<img src="${u.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (u.firstName ? u.firstName[0].toUpperCase() : 'U')}
         </div>
         <div style="min-width: 0; flex: 1;">
-          <strong style="font-size: 0.9rem; color: var(--text-main); display: block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</strong>
-          <div style="font-size: 0.78rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(u.email)}</div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+            <strong style="font-size: 0.88rem; color: var(--text-main); display: block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</strong>
+            ${lastMsg ? `<span style="font-size: 0.7rem; color: var(--text-muted); flex-shrink: 0;">${new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <div style="font-size: 0.76rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+              ${lastMsg ? (lastMsg.sender === 'admin' ? `You: ${escapeHtml(lastMsg.text || 'Attachment')}` : escapeHtml(lastMsg.text || 'Attachment')) : (u.username ? `@${escapeHtml(u.username)}` : escapeHtml(u.email))}
+            </div>
+            ${unreadCount > 0 ? `<span class="badge badge-approved" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 999px;">${unreadBadgeText}</span>` : ''}
+          </div>
         </div>
       </div>
     `;
   }).join('');
 
   // Auto-select on desktop only if nothing currently selected
-  if (!selectedUserForChat && filteredUsers.length > 0 && window.innerWidth >= 900) {
-    selectUserForAdminChat(filteredUsers[0].id);
+  if (!selectedUserForChat && displayedUsers.length > 0 && window.innerWidth >= 900) {
+    selectUserForAdminChat(displayedUsers[0].id);
   }
 }
 
@@ -2015,6 +2188,7 @@ function selectUserForAdminChat(userId) {
   }
 
   window.TaskEarnDB.markMessagesRead(userId, 'admin');
+  updateAdminTabIndicators();
   renderAdminChatMessages();
 }
 
@@ -2032,7 +2206,16 @@ function renderAdminChatMessages() {
   const container = document.getElementById('admChatMessages');
 
   if (msgs.length === 0) {
-    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); margin: auto;">No messages with this user yet.</div>`;
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); margin: auto; padding: 24px;">
+        <div style="font-weight: 700; color: var(--text-main); font-size: 1.05rem; margin-bottom: 4px;">
+          Start conversation with ${escapeHtml(selectedUserForChat.firstName)}
+        </div>
+        <div style="font-size: 0.84rem; color: var(--text-muted); max-width: 320px; margin: 0 auto; line-height: 1.45;">
+          No messages with this user yet. Type your first message below and press Send.
+        </div>
+      </div>
+    `;
     return;
   }
 
@@ -2127,6 +2310,8 @@ async function handleSendAdminReply(event) {
   input.value = '';
   clearAdminChatImagePreview();
   renderAdminChatMessages();
+  renderAdminConversationList();
+  updateAdminTabIndicators();
 }
 
 function exportDatabaseJson() {

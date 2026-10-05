@@ -1103,6 +1103,29 @@ class DataStore {
     }
   }
 
+  getUnreadMessageCountForUser(userId) {
+    if (!userId) return 0;
+    const msgs = this._get(STORAGE_KEYS.MESSAGES);
+    return msgs.filter(m => m.userId === userId && m.sender === 'admin' && !m.read).length;
+  }
+
+  getUnreadMessageCountForAdmin() {
+    const msgs = this._get(STORAGE_KEYS.MESSAGES);
+    return msgs.filter(m => m.sender === 'user' && !m.read).length;
+  }
+
+  getPendingWithdrawalsCount() {
+    const withdrawals = this._get(STORAGE_KEYS.WITHDRAWALS);
+    return withdrawals.filter(w => w.status === 'pending').length;
+  }
+
+  formatBadgeCount(count) {
+    const n = parseInt(count, 10) || 0;
+    if (n <= 0) return '';
+    if (n >= 100) return '99+';
+    return String(n);
+  }
+
   // =================== STATS ===================
   getPlatformStats() {
     const users = this.getUsers();

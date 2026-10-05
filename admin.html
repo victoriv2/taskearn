@@ -170,9 +170,11 @@
         </div>
         <div class="sidebar-link" onclick="switchAdminTab('financial')" id="admDTabFinancial">
           <span id="admDIconFinancial"></span> Financials & Payouts
+          <span class="tab-badge" id="admDBadgeFinance" style="display: none;"></span>
         </div>
         <div class="sidebar-link" onclick="switchAdminTab('more')" id="admDTabMore">
           <span id="admDIconMore"></span> Support & Inbox
+          <span class="tab-badge" id="admDBadgeMore" style="display: none;"></span>
         </div>
       </nav>
 
@@ -1119,14 +1121,19 @@
 
             <div class="inbox-layout viewing-list" id="admInboxLayout">
               <div class="inbox-conversations-panel card" style="padding: 14px; margin-bottom: 0;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                   <h4 style="font-size: 0.82rem; text-transform: uppercase; color: var(--text-muted); padding: 0; margin: 0;">
                     User Conversations
                   </h4>
-                  <span class="badge badge-active" id="admInboxConvCountBadge" style="font-size: 0.72rem;">0</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-active" id="admInboxConvCountBadge" style="font-size: 0.72rem;">0</span>
+                    <button type="button" class="btn btn-primary btn-sm" style="padding: 3px 8px; font-size: 0.72rem; font-weight: 600;" onclick="openAdminNewChatModal()" title="Start conversation with any user">
+                      + New Chat
+                    </button>
+                  </div>
                 </div>
-                <div class="search-box" style="margin-bottom: 12px;">
-                  <span id="admInboxSearchIcon"></span>
+                <div class="search-box" style="margin-bottom: 12px; width: 100%;">
+                  <span id="admInboxSearchIcon" class="icon"></span>
                   <input type="text" id="admInboxSearchInput" placeholder="Search conversations by user..." oninput="renderAdminConversationList()">
                 </div>
                 <div id="admConversationList" style="display: flex; flex-direction: column; gap: 8px;">
@@ -1235,36 +1242,38 @@
       <button class="nav-item" onclick="switchAdminTab('financial')" id="mAdmNavFinancial">
         <span id="mAdmIconFinancial"></span>
         <span>Finance</span>
+        <span class="tab-badge" id="mAdmBadgeFinance" style="display: none;"></span>
       </button>
       <button class="nav-item" onclick="switchAdminTab('more')" id="mAdmNavMore">
         <span id="mAdmIconMore"></span>
         <span>More</span>
+        <span class="tab-badge" id="mAdmBadgeMore" style="display: none;"></span>
       </button>
     </nav>
   </div>
 
   <!-- User Details Drawer -->
-  <div id="userDrawer" class="drawer-backdrop">
+  <div id="userDrawer" class="drawer-backdrop" onclick="if(event.target === this) closeUserDrawer()">
     <div class="drawer-panel">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-        <h3 class="card-title">User Account Details</h3>
-        <button class="modal-close" onclick="closeUserDrawer()">
+      <div class="drawer-header">
+        <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">User Account Details</h3>
+        <button class="modal-close" onclick="closeUserDrawer()" aria-label="Close drawer" title="Close">
           <span id="iconCloseDrawer"></span>
         </button>
       </div>
 
-      <div id="drawerContent">
+      <div id="drawerContent" class="drawer-body">
         <!-- Dynamically rendered -->
       </div>
     </div>
   </div>
 
   <!-- Edit Task Modal -->
-  <div id="editTaskModal" class="modal-backdrop">
+  <div id="editTaskModal" class="modal-backdrop" onclick="if(event.target === this) closeEditTaskModal()">
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 class="card-title">Edit Task Campaign</h3>
-        <button class="modal-close" onclick="closeEditTaskModal()">
+        <button class="modal-close" onclick="closeEditTaskModal()" aria-label="Close modal" title="Close">
           <span id="iconCloseEditModal"></span>
         </button>
       </div>
@@ -1314,6 +1323,27 @@
         </div>
         <button type="submit" class="btn btn-primary btn-block">Save Changes</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Start New Conversation Modal -->
+  <div id="admNewChatModal" class="modal-backdrop" onclick="if(event.target === this) closeAdminNewChatModal()">
+    <div class="modal-dialog" style="max-width: 480px; max-height: 80vh;">
+      <div class="modal-header">
+        <h3 class="card-title" style="margin: 0; font-size: 1.05rem;">Start New Conversation</h3>
+        <button type="button" class="modal-close" onclick="closeAdminNewChatModal()" aria-label="Close modal" title="Close">
+          <span id="iconCloseNewChatModal"></span>
+        </button>
+      </div>
+      <div style="padding: 16px;">
+        <div class="search-box" style="margin-bottom: 12px; width: 100%; max-width: 100%;">
+          <span id="admNewChatSearchIcon" class="icon"></span>
+          <input type="text" id="admNewChatSearchInput" placeholder="Search by name, @username, or email..." oninput="renderAdminNewChatUserList()">
+        </div>
+        <div id="admNewChatUserList" style="display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
     </div>
   </div>
 

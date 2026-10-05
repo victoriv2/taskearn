@@ -535,6 +535,7 @@ function switchUserTab(tabName) {
   } else if (tabName === 'messages') {
     renderChatMessages();
     window.TaskEarnDB.markMessagesRead(activeUser.id, 'user');
+    updateUserTabIndicators();
   } else if (tabName === 'referrals') {
     renderReferralsTab();
   } else if (tabName === 'more') {
@@ -589,6 +590,29 @@ function updateWalletHeader() {
   const heroNaira = document.getElementById('heroNairaBalance');
   if (heroPoints) heroPoints.textContent = activeUser.pointsBalance.toLocaleString();
   if (heroNaira) heroNaira.textContent = `₦${nairaVal}`;
+
+  updateUserTabIndicators();
+}
+
+function updateUserTabIndicators() {
+  if (!activeUser) return;
+  const count = window.TaskEarnDB.getUnreadMessageCountForUser(activeUser.id);
+  const text = window.TaskEarnDB.formatBadgeCount(count);
+
+  const dBadge = document.getElementById('dBadgeMessages');
+  const mBadge = document.getElementById('mBadgeMessages');
+
+  [dBadge, mBadge].forEach(badge => {
+    if (badge) {
+      if (text) {
+        badge.textContent = text;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.textContent = '';
+        badge.style.display = 'none';
+      }
+    }
+  });
 }
 
 // =================== TAB 1: TASKS ===================
@@ -1405,6 +1429,7 @@ function handleSendUserMessage(event) {
   textInput.value = '';
   clearChatImagePreview();
   renderChatMessages();
+  updateUserTabIndicators();
 }
 
 // =================== TAB 4: REFERRALS ===================

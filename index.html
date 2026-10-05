@@ -203,6 +203,7 @@
         </div>
         <div class="sidebar-link" onclick="switchUserTab('messages')" id="dTabChat">
           <span id="dIconChat"></span> Messages
+          <span class="tab-badge" id="dBadgeMessages" style="display: none;"></span>
         </div>
         <div class="sidebar-link" onclick="switchUserTab('referrals')" id="dTabReferral">
           <span id="dIconReferral"></span> Referrals
@@ -784,6 +785,7 @@
       <button class="nav-item" onclick="switchUserTab('messages')" id="mNavMessages">
         <span id="mIconChat"></span>
         <span>Messages</span>
+        <span class="tab-badge" id="mBadgeMessages" style="display: none;"></span>
       </button>
       <button class="nav-item" onclick="switchUserTab('referrals')" id="mNavReferrals">
         <span id="mIconReferral"></span>
@@ -798,7 +800,7 @@
   </div>
 
   <!-- Task Detail Modal (Pure Click & Invisible Background Timer - NO Screenshot Uploads!) -->
-  <div id="taskModal" class="modal-backdrop">
+  <div id="taskModal" class="modal-backdrop" onclick="if(event.target === this) closeTaskModal()">
     <div class="modal-dialog">
       <div class="modal-header">
         <div>
