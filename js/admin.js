@@ -35,14 +35,25 @@ function injectAdminSvgIcons() {
 
   // UI Icons
   setIcon('admSearchIcon', window.ICONS.search);
+  setIcon('admSearchIconFull', window.ICONS.search);
   setIcon('admTaskSearchIcon', window.ICONS.search);
   setIcon('admPayInSearchIcon', window.ICONS.search);
+  setIcon('admPayInSearchIconFull', window.ICONS.search);
   setIcon('admBtnIconPlus', window.ICONS.plus);
   setIcon('admIconAttach', window.ICONS.image);
   setIcon('admIconSend', window.ICONS.send);
   setIcon('admHeaderLogoutIcon', window.ICONS.logout);
   setIcon('iconCloseDrawer', window.ICONS.close);
   setIcon('iconCloseEditModal', window.ICONS.close);
+
+  // More Hub Navigation Icons
+  setIcon('hubIconUsers', window.ICONS.users || window.ICONS.referral);
+  setIcon('hubIconTasksFeed', window.ICONS.tasks);
+  setIcon('hubIconPayIns', window.ICONS.creditCard || window.ICONS.wallet);
+  setIcon('hubIconPending', window.ICONS.clock);
+  setIcon('hubIconLogs', window.ICONS.list || window.ICONS.check);
+  setIcon('hubIconInbox', window.ICONS.chat);
+  setIcon('hubIconCloud', window.ICONS.database || window.ICONS.shield);
 
   if (window.initPasswordToggleIcons) {
     window.initPasswordToggleIcons();
@@ -60,21 +71,9 @@ function initAdminDashboard() {
         badge.className = 'badge badge-approved';
       }
       if (window.TaskEarnDB.isAdminLoggedIn()) {
-        renderOverviewTab();
-        const activeSection = document.querySelector('.admin-section.active');
-        if (activeSection) {
-          if (activeSection.id === 'sec-tasks') renderAdminTasks();
-          if (activeSection.id === 'sec-users') renderUsersTable();
-          if (activeSection.id === 'sec-financial') {
-            renderFinancialTab();
-            renderWithdrawalsTable();
-            renderPayInTable();
-          }
-          if (activeSection.id === 'sec-messages') {
-            renderAdminChatUserList();
-            if (selectedUserForChat) renderAdminChatMessages();
-          }
-        }
+        const currentTab = localStorage.getItem('taskearn_admin_active_tab') || 'overview';
+        switchAdminTab(currentTab, true);
+        updateMoreHubBadges();
       }
     });
   }
@@ -103,6 +102,7 @@ function checkAdminAuth() {
     if (!tabs.includes(savedTab)) savedTab = 'overview';
 
     switchAdminTab(savedTab);
+    updateMoreHubBadges();
   }
 }
 
@@ -146,7 +146,7 @@ function handleAdminLogout() {
   checkAdminAuth();
 }
 
-function switchAdminTab(tabName) {
+function switchAdminTab(tabName, preserveSubpage = false) {
   const tabs = ['overview', 'tasks', 'create-task', 'financial', 'more'];
   if (!tabs.includes(tabName)) tabName = 'overview';
 
@@ -198,9 +198,91 @@ function switchAdminTab(tabName) {
     renderPayInRecords();
     renderWithdrawalsQueue();
   } else if (tabName === 'more') {
+    if (!preserveSubpage) {
+      document.querySelectorAll('.more-subpage').forEach(el => el.style.display = 'none');
+      const hub = document.getElementById('admMoreHubMenu');
+      if (hub) hub.style.display = 'block';
+      updateMoreHubBadges();
+      renderAdminConversationList();
+    }
+  }
+}
+
+function openMorePage(pageId) {
+  switchAdminTab('more', true);
+
+  const hub = document.getElementById('admMoreHubMenu');
+  if (hub) hub.style.display = 'none';
+
+  document.querySelectorAll('.more-subpage').forEach(el => el.style.display = 'none');
+
+  const target = document.getElementById(`admMorePage-${pageId}`);
+  if (target) {
+    target.style.display = 'block';
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Refresh relevant data
+  if (pageId === 'users') {
+    renderAdminUsers();
+  } else if (pageId === 'tasks-feed') {
+    renderRecentActivity();
+  } else if (pageId === 'pay-ins') {
+    renderPayInRecords();
+  } else if (pageId === 'pending-withdrawals' || pageId === 'withdrawal-logs') {
+    renderWithdrawalsQueue();
+  } else if (pageId === 'inbox') {
     renderAdminConversationList();
   }
 }
+
+function closeMorePage() {
+  document.querySelectorAll('.more-subpage').forEach(el => el.style.display = 'none');
+  const hub = document.getElementById('admMoreHubMenu');
+  if (hub) {
+    hub.style.display = 'block';
+    hub.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  updateMoreHubBadges();
+}
+
+function updateMoreHubBadges() {
+  const users = window.TaskEarnDB.getUsers();
+  const submissions = window.TaskEarnDB.getSubmissions();
+  const completedTasks = submissions.filter(s => s.status === 'approved' || s.proofData || !s.status);
+  const payments = window.TaskEarnDB.getPayments();
+  const withdrawals = window.TaskEarnDB.getWithdrawals();
+  const pending = withdrawals.filter(w => w.status === 'pending');
+  const completedWithdrawals = withdrawals.filter(w => w.status !== 'pending');
+  const messages = window.TaskEarnDB.getMessages ? window.TaskEarnDB.getMessages() : [];
+  const uniqueConvs = new Set(messages.map(m => m.userId)).size;
+
+  const totalPayIn = payments
+    .filter(p => p.status === 'successful')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  const hubUsersBadge = document.getElementById('hubUsersBadge');
+  if (hubUsersBadge) hubUsersBadge.textContent = `${users.length} Members`;
+
+  const hubTasksBadge = document.getElementById('hubTasksBadge');
+  if (hubTasksBadge) hubTasksBadge.textContent = `${completedTasks.length} Completed`;
+
+  const hubPayInsBadge = document.getElementById('hubPayInsBadge');
+  if (hubPayInsBadge) hubPayInsBadge.textContent = `Total: ₦${totalPayIn.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
+  const hubPendingBadge = document.getElementById('hubPendingBadge');
+  if (hubPendingBadge) hubPendingBadge.textContent = `${pending.length} Pending`;
+
+  const hubLogsBadge = document.getElementById('hubLogsBadge');
+  if (hubLogsBadge) hubLogsBadge.textContent = `${completedWithdrawals.length} Records`;
+
+  const hubInboxBadge = document.getElementById('hubInboxBadge');
+  if (hubInboxBadge) hubInboxBadge.textContent = `${uniqueConvs} Chats`;
+}
+
+window.openMorePage = openMorePage;
+window.closeMorePage = closeMorePage;
+window.updateMoreHubBadges = updateMoreHubBadges;
 
 window.addEventListener('hashchange', () => {
   if (!window.TaskEarnDB.isAdminLoggedIn()) return;
@@ -253,90 +335,73 @@ function renderOverviewStats() {
   if (usersListTotalBadge) usersListTotalBadge.textContent = `${stats.totalUsers} Members`;
 }
 
-// Live activity feed of auto-verified completions
+function createActivityRowHtml(c, uObj) {
+  return `
+    <tr>
+      <td>${new Date(c.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+      <td>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 28px; height: 28px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${c.userId}')">
+            ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (c.userName ? c.userName[0].toUpperCase() : 'U')}
+          </div>
+          <div>
+            <strong style="cursor: pointer;" onclick="openUserDrawer('${c.userId}')">${escapeHtml(c.userName)}</strong>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">User ID: ${c.userId}</div>
+          </div>
+        </div>
+      </td>
+      <td><strong>${escapeHtml(c.taskTitle)}</strong></td>
+      <td><span class="badge badge-approved">+${c.points} PTS</span></td>
+      <td>
+        <span class="badge badge-active">Auto Click & Dwell</span>
+      </td>
+    </tr>
+  `;
+}
+
+// Live activity feed of auto-verified completions (Both Overview & Full Screen)
 function renderRecentActivity() {
   const completions = window.TaskEarnDB.getSubmissions();
   const allUsers = window.TaskEarnDB.getUsers();
   const userMap = {};
   allUsers.forEach(u => { userMap[u.id] = u; });
-  const tbody = document.getElementById('admRecentActivityTableBody');
+
+  const totalCompletionsBadge = document.getElementById('totalCompletionsBadge');
+  if (totalCompletionsBadge) totalCompletionsBadge.textContent = `${completions.length} Completed`;
+
+  const fullTasksTotalBadge = document.getElementById('fullTasksTotalBadge');
+  if (fullTasksTotalBadge) fullTasksTotalBadge.textContent = `${completions.length} Completed`;
+
+  const overviewBody = document.getElementById('admRecentActivityTableBodyOverview') || document.getElementById('admRecentActivityTableBody');
+  const fullBody = document.getElementById('admRecentActivityTableBodyFull');
+
+  const emptyMsg = `
+    <tr>
+      <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+        No task completions recorded yet.
+      </td>
+    </tr>
+  `;
 
   if (completions.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
-          No task completions yet. When users perform tasks, live auto-verified completions appear here.
-        </td>
-      </tr>
-    `;
+    if (overviewBody) overviewBody.innerHTML = emptyMsg;
+    if (fullBody) fullBody.innerHTML = emptyMsg;
     return;
   }
 
-  tbody.innerHTML = completions.slice(0, 10).map(c => {
-    const uObj = userMap[c.userId];
-    return `
-      <tr>
-        <td>${new Date(c.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-        <td>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 28px; height: 28px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${c.userId}')">
-              ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (c.userName ? c.userName[0].toUpperCase() : 'U')}
-            </div>
-            <div>
-              <strong style="cursor: pointer;" onclick="openUserDrawer('${c.userId}')">${escapeHtml(c.userName)}</strong>
-              <div style="font-size: 0.75rem; color: var(--text-muted);">User ID: ${c.userId}</div>
-            </div>
-          </div>
-        </td>
-        <td><strong>${escapeHtml(c.taskTitle)}</strong></td>
-        <td><span class="badge badge-approved">+${c.points} PTS</span></td>
-        <td>
-          <span class="badge badge-active">Auto Click & Dwell</span>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  // Overview gets latest 5 items
+  if (overviewBody) {
+    overviewBody.innerHTML = completions.slice(0, 5).map(c => createActivityRowHtml(c, userMap[c.userId])).join('');
+  }
+
+  // Full subpage gets all items
+  if (fullBody) {
+    fullBody.innerHTML = completions.map(c => createActivityRowHtml(c, userMap[c.userId])).join('');
+  }
 }
 
-function renderAdminUsers() {
-  const users = window.TaskEarnDB.getUsers();
-  const query = (document.getElementById('admUserSearchInput')?.value || '').toLowerCase();
-  const statusFilter = document.getElementById('admUserStatusFilter')?.value || 'all';
-  const sortFilter = document.getElementById('admUserSortFilter')?.value || 'newest';
-
-  let filtered = users.filter(u => {
-    const matchesSearch = `${u.firstName} ${u.lastName}`.toLowerCase().includes(query) ||
-                          (u.username && u.username.toLowerCase().includes(query)) ||
-                          u.email.toLowerCase().includes(query) ||
-                          u.phone.toLowerCase().includes(query);
-    if (!matchesSearch) return false;
-    if (statusFilter !== 'all' && u.status !== statusFilter) return false;
-    return true;
-  });
-
-  if (sortFilter === 'points-desc') {
-    filtered.sort((a, b) => b.pointsBalance - a.pointsBalance);
-  } else if (sortFilter === 'points-asc') {
-    filtered.sort((a, b) => a.pointsBalance - b.pointsBalance);
-  } else if (sortFilter === 'oldest') {
-    filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-  } else {
-    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }
-
-  const tbody = document.getElementById('admUsersTableBody');
-  if (filtered.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-          No users match the criteria.
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(u => `
+function createUserRowHtml(u) {
+  return `
     <tr>
       <td>
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -380,7 +445,70 @@ function renderAdminUsers() {
         </button>
       </td>
     </tr>
-  `).join('');
+  `;
+}
+
+// User Directory (Both Overview Preview & Full Dedicated Screen)
+function renderAdminUsers() {
+  const users = window.TaskEarnDB.getUsers();
+  const searchInputFull = document.getElementById('admUserSearchInputFull');
+  const searchInputOverview = document.getElementById('admUserSearchInput');
+  const query = (searchInputFull?.value || searchInputOverview?.value || '').toLowerCase().trim();
+
+  const statusFilterEl = document.getElementById('admUserStatusFilterFull') || document.getElementById('admUserStatusFilter');
+  const sortFilterEl = document.getElementById('admUserSortFilterFull') || document.getElementById('admUserSortFilter');
+  const statusFilter = statusFilterEl?.value || 'all';
+  const sortFilter = sortFilterEl?.value || 'newest';
+
+  let filtered = users.filter(u => {
+    const matchesSearch = `${u.firstName} ${u.lastName}`.toLowerCase().includes(query) ||
+                          (u.username && u.username.toLowerCase().includes(query)) ||
+                          u.email.toLowerCase().includes(query) ||
+                          u.phone.toLowerCase().includes(query);
+    if (!matchesSearch) return false;
+    if (statusFilter !== 'all' && u.status !== statusFilter) return false;
+    return true;
+  });
+
+  if (sortFilter === 'points-desc') {
+    filtered.sort((a, b) => b.pointsBalance - a.pointsBalance);
+  } else if (sortFilter === 'points-asc') {
+    filtered.sort((a, b) => a.pointsBalance - b.pointsBalance);
+  } else if (sortFilter === 'oldest') {
+    filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  } else {
+    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  const usersListTotalBadge = document.getElementById('usersListTotalBadge');
+  if (usersListTotalBadge) usersListTotalBadge.textContent = `${users.length} Members`;
+
+  const fullUsersTotalBadge = document.getElementById('fullUsersTotalBadge');
+  if (fullUsersTotalBadge) fullUsersTotalBadge.textContent = `${filtered.length} of ${users.length} Members`;
+
+  const overviewBody = document.getElementById('admUsersTableBodyOverview') || document.getElementById('admUsersTableBody');
+  const fullBody = document.getElementById('admUsersTableBodyFull');
+
+  // Overview gets 5 newest users
+  if (overviewBody) {
+    const newest5 = [...users].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+    overviewBody.innerHTML = newest5.map(u => createUserRowHtml(u)).join('');
+  }
+
+  // Full subpage gets all filtered users
+  if (fullBody) {
+    if (filtered.length === 0) {
+      fullBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No users match the criteria.
+          </td>
+        </tr>
+      `;
+    } else {
+      fullBody.innerHTML = filtered.map(u => createUserRowHtml(u)).join('');
+    }
+  }
 }
 
 function openUserDrawer(userId) {
@@ -1109,13 +1237,58 @@ async function handleAdminPasswordChange(event) {
 
 // =================== PAY-IN RECORDS (VERIFICATION REVENUE) ===================
 
+function createPayInRowHtml(p, uObj) {
+  return `
+    <tr>
+      <td style="white-space: nowrap;">
+        <div style="font-weight: 600;">${new Date(p.createdAt).toLocaleDateString()}</div>
+        <div style="font-size: 0.76rem; color: var(--text-muted);">${new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+      </td>
+      <td>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
+            ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (p.userName ? p.userName[0].toUpperCase() : 'U')}
+          </div>
+          <div>
+            <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
+              ${escapeHtml(p.userName || 'User')}
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(p.userEmail || '')}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <strong style="color: var(--primary-green-dark); font-size: 0.95rem;">
+          ₦${Number(p.amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+        </strong>
+      </td>
+      <td>
+        <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">
+          ${escapeHtml(p.gateway || 'Paystack')}
+        </span>
+      </td>
+      <td>
+        <span style="font-family: monospace; font-size: 0.8rem; background-color: var(--bg-subtle); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">
+          ${escapeHtml(p.reference || 'N/A')}
+        </span>
+      </td>
+      <td>
+        <span class="badge ${p.status === 'successful' ? 'badge-approved' : 'badge-pending'}">
+          ${p.status.toUpperCase()}
+        </span>
+      </td>
+    </tr>
+  `;
+}
+
+// Pay-In Records (Both Financial Preview & Full Screen)
 function renderPayInRecords() {
   const payments = window.TaskEarnDB.getPayments();
   const allUsers = window.TaskEarnDB.getUsers();
   const userMap = {};
   allUsers.forEach(u => { userMap[u.id] = u; });
 
-  const searchInput = document.getElementById('admPayInSearchInput');
+  const searchInput = document.getElementById('admPayInSearchInputFull') || document.getElementById('admPayInSearchInput');
   const query = (searchInput?.value || '').trim().toLowerCase();
 
   const filtered = payments.filter(p => {
@@ -1134,67 +1307,91 @@ function renderPayInRecords() {
   if (badgeEl) {
     badgeEl.textContent = `Total: ₦${totalPayIn.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
   }
+  const fullBadgeEl = document.getElementById('fullPayInTotalBadge');
+  if (fullBadgeEl) {
+    fullBadgeEl.textContent = `Total: ₦${totalPayIn.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  }
 
-  const tbody = document.getElementById('admPayInTableBody');
-  if (!tbody) return;
+  const financeBody = document.getElementById('admPayInTableBodyFinance') || document.getElementById('admPayInTableBody');
+  const fullBody = document.getElementById('admPayInTableBodyFull');
+
+  const emptyMsg = `
+    <tr>
+      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+        ${query ? 'No pay-in records match your search.' : 'No pay-in transactions recorded yet.'}
+      </td>
+    </tr>
+  `;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-          ${query ? 'No pay-in records match your search.' : 'No pay-in transactions recorded yet.'}
-        </td>
-      </tr>
-    `;
+    if (financeBody) financeBody.innerHTML = emptyMsg;
+    if (fullBody) fullBody.innerHTML = emptyMsg;
     return;
   }
 
-  tbody.innerHTML = filtered.map(p => {
-    const uObj = userMap[p.userId];
-    return `
-      <tr>
-        <td style="white-space: nowrap;">
-          <div style="font-weight: 600;">${new Date(p.createdAt).toLocaleDateString()}</div>
-          <div style="font-size: 0.76rem; color: var(--text-muted);">${new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-        </td>
-        <td>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
-              ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (p.userName ? p.userName[0].toUpperCase() : 'U')}
-            </div>
-            <div>
-              <div style="font-weight: 700; color: var(--text-main); cursor: pointer;" onclick="openUserDrawer('${p.userId}')">
-                ${escapeHtml(p.userName || 'User')}
-              </div>
-              <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(p.userEmail || '')}</div>
-            </div>
-          </div>
-        </td>
-        <td>
-          <strong style="color: var(--primary-green-dark); font-size: 0.95rem;">
-            ₦${Number(p.amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-          </strong>
-        </td>
-        <td>
-          <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">
-            ${escapeHtml(p.gateway || 'Paystack')}
-          </span>
-        </td>
-        <td>
-          <span style="font-family: monospace; font-size: 0.8rem; background-color: var(--bg-subtle); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">
-            ${escapeHtml(p.reference || 'N/A')}
-          </span>
-        </td>
-        <td>
-          <span class="badge ${p.status === 'successful' ? 'badge-approved' : 'badge-pending'}">
-            ${p.status.toUpperCase()}
-          </span>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  if (financeBody) {
+    financeBody.innerHTML = filtered.slice(0, 5).map(p => createPayInRowHtml(p, userMap[p.userId])).join('');
+  }
+  if (fullBody) {
+    fullBody.innerHTML = filtered.map(p => createPayInRowHtml(p, userMap[p.userId])).join('');
+  }
 }
 
+function createPendingWithdrawalRowHtml(w, uObj) {
+  return `
+    <tr>
+      <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
+      <td>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${w.userId}')">
+            ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (w.userName ? w.userName[0].toUpperCase() : 'U')}
+          </div>
+          <div>
+            <strong style="cursor: pointer;" onclick="openUserDrawer('${w.userId}')">${escapeHtml(w.userName)}</strong>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">User ID: ${w.userId}</div>
+          </div>
+        </div>
+      </td>
+      <td><strong>${w.points.toLocaleString()} PTS</strong></td>
+      <td><strong style="color: var(--primary-green-dark); font-size: 1.05rem;">₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
+      <td>
+        <div style="font-weight: 700;">${escapeHtml(w.bankName)}</div>
+        <div style="font-size: 0.85rem; letter-spacing: 0.04em;">${escapeHtml(w.accountNumber)} &bull; ${escapeHtml(w.accountName)}</div>
+      </td>
+      <td>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-primary btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'approved')">
+            Approve Payout
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'declined')">
+            Decline & Refund
+          </button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function createCompletedWithdrawalRowHtml(w) {
+  const isApproved = w.status === 'approved';
+  return `
+    <tr>
+      <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
+      <td>${escapeHtml(w.userName)}</td>
+      <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
+      <td>${escapeHtml(w.bankName)} &bull; ${escapeHtml(w.accountNumber)}</td>
+      <td>
+        <span class="badge ${isApproved ? 'badge-approved' : 'badge-declined'}">
+          ${w.status.toUpperCase()}
+        </span>
+        ${w.declineReason ? `<div style="font-size: 0.75rem; color: #991b1b;">Reason: ${escapeHtml(w.declineReason)}</div>` : ''}
+      </td>
+      <td>${w.processedAt ? new Date(w.processedAt).toLocaleDateString() : 'N/A'}</td>
+    </tr>
+  `;
+}
+
+// Withdrawals Queue & Completed Logs (Both Financial Preview & Full Screen)
 function renderWithdrawalsQueue() {
   const withdrawals = window.TaskEarnDB.getWithdrawals();
   const allUsers = window.TaskEarnDB.getUsers();
@@ -1204,83 +1401,59 @@ function renderWithdrawalsQueue() {
   const pending = withdrawals.filter(w => w.status === 'pending');
   const completed = withdrawals.filter(w => w.status !== 'pending');
 
-  document.getElementById('pendingWithdrawalsBadge').textContent = `${pending.length} Pending`;
+  const pendingBadge = document.getElementById('pendingWithdrawalsBadge');
+  if (pendingBadge) pendingBadge.textContent = `${pending.length} Pending`;
 
-  const pendingBody = document.getElementById('admPendingWithdrawalsBody');
+  const fullPendingBadge = document.getElementById('fullPendingTotalBadge');
+  if (fullPendingBadge) fullPendingBadge.textContent = `${pending.length} Pending`;
+
+  const fullLogsBadge = document.getElementById('fullLogsTotalBadge');
+  if (fullLogsBadge) fullLogsBadge.textContent = `${completed.length} Records`;
+
+  const financePendingBody = document.getElementById('admPendingWithdrawalsBodyFinance') || document.getElementById('admPendingWithdrawalsBody');
+  const fullPendingBody = document.getElementById('admPendingWithdrawalsBodyFull');
+
+  const emptyPendingMsg = `
+    <tr>
+      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+        No pending withdrawal requests. All payouts are cleared!
+      </td>
+    </tr>
+  `;
+
   if (pending.length === 0) {
-    pendingBody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-          No pending withdrawal requests. All payouts are cleared!
-        </td>
-      </tr>
-    `;
+    if (financePendingBody) financePendingBody.innerHTML = emptyPendingMsg;
+    if (fullPendingBody) fullPendingBody.innerHTML = emptyPendingMsg;
   } else {
-    pendingBody.innerHTML = pending.map(w => {
-      const uObj = userMap[w.userId];
-      return `
-        <tr>
-          <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
-          <td>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="width: 32px; height: 32px; border-radius: var(--radius-full); background: var(--primary-blue); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; overflow: hidden; flex-shrink: 0; cursor: pointer;" onclick="openUserDrawer('${w.userId}')">
-                ${uObj?.avatar ? `<img src="${uObj.avatar}" style="width: 100%; height: 100%; object-fit: cover;">` : (w.userName ? w.userName[0].toUpperCase() : 'U')}
-              </div>
-              <div>
-                <strong style="cursor: pointer;" onclick="openUserDrawer('${w.userId}')">${escapeHtml(w.userName)}</strong>
-                <div style="font-size: 0.78rem; color: var(--text-muted);">User ID: ${w.userId}</div>
-              </div>
-            </div>
-          </td>
-          <td><strong>${w.points.toLocaleString()} PTS</strong></td>
-          <td><strong style="color: var(--primary-green-dark); font-size: 1.05rem;">₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
-          <td>
-            <div style="font-weight: 700;">${escapeHtml(w.bankName)}</div>
-            <div style="font-size: 0.85rem; letter-spacing: 0.04em;">${escapeHtml(w.accountNumber)} &bull; ${escapeHtml(w.accountName)}</div>
-          </td>
-          <td>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-primary btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'approved')">
-                Approve Payout
-              </button>
-              <button class="btn btn-danger btn-sm" onclick="handleReviewWithdrawal('${w.id}', 'declined')">
-                Decline & Refund
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    if (financePendingBody) {
+      financePendingBody.innerHTML = pending.slice(0, 5).map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+    }
+    if (fullPendingBody) {
+      fullPendingBody.innerHTML = pending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+    }
   }
 
-  const completedBody = document.getElementById('admCompletedWithdrawalsBody');
+  const financeCompletedBody = document.getElementById('admCompletedWithdrawalsBodyFinance') || document.getElementById('admCompletedWithdrawalsBody');
+  const fullCompletedBody = document.getElementById('admCompletedWithdrawalsBodyFull');
+
+  const emptyCompletedMsg = `
+    <tr>
+      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+        No completed transactions in history.
+      </td>
+    </tr>
+  `;
+
   if (completed.length === 0) {
-    completedBody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-          No completed transactions in history.
-        </td>
-      </tr>
-    `;
+    if (financeCompletedBody) financeCompletedBody.innerHTML = emptyCompletedMsg;
+    if (fullCompletedBody) fullCompletedBody.innerHTML = emptyCompletedMsg;
   } else {
-    completedBody.innerHTML = completed.map(w => {
-      const isApproved = w.status === 'approved';
-      return `
-        <tr>
-          <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
-          <td>${escapeHtml(w.userName)}</td>
-          <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
-          <td>${escapeHtml(w.bankName)} &bull; ${escapeHtml(w.accountNumber)}</td>
-          <td>
-            <span class="badge ${isApproved ? 'badge-approved' : 'badge-declined'}">
-              ${w.status.toUpperCase()}
-            </span>
-            ${w.declineReason ? `<div style="font-size: 0.75rem; color: #991b1b;">Reason: ${escapeHtml(w.declineReason)}</div>` : ''}
-          </td>
-          <td>${w.processedAt ? new Date(w.processedAt).toLocaleDateString() : 'N/A'}</td>
-        </tr>
-      `;
-    }).join('');
+    if (financeCompletedBody) {
+      financeCompletedBody.innerHTML = completed.slice(0, 5).map(w => createCompletedWithdrawalRowHtml(w)).join('');
+    }
+    if (fullCompletedBody) {
+      fullCompletedBody.innerHTML = completed.map(w => createCompletedWithdrawalRowHtml(w)).join('');
+    }
   }
 }
 

@@ -44,6 +44,73 @@
       border-radius: var(--radius-sm);
       letter-spacing: 0.05em;
     }
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+      margin-bottom: 24px;
+    }
+    .hub-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .hub-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary-green);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+    .hub-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .hub-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-subtle);
+      color: var(--primary-blue);
+    }
+    .hub-card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+    .hub-card-desc {
+      font-size: 0.83rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+    .hub-card-action {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--primary-green-dark);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: auto;
+    }
+    .more-subpage {
+      animation: fadeInSubpage 0.18s ease-in-out;
+    }
+    @keyframes fadeInSubpage {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -173,16 +240,23 @@
             </div>
           </div>
 
-          <!-- Recent Completed Tasks Activity Stream (Automated via Click Timer) -->
+          <!-- Recent Completed Tasks Activity Stream (Preview) -->
           <div class="card" style="border-left: 4px solid var(--primary-green);">
             <div class="card-header">
               <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-                  <h3 class="card-title" style="margin-bottom: 0;">Completed Tasks (Live Feed)</h3>
-                  <span class="badge badge-approved" id="totalCompletionsBadge">0 Completed</span>
-                </div>
-                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-                  All tasks verify automatically in the background upon completion.
+                  <div>
+                    <h3 class="card-title" style="margin-bottom: 0;">Completed Tasks (Recent 5)</h3>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                      Showing 5 latest completions. Open full live feed in More to view all.
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-approved" id="totalCompletionsBadge">0 Completed</span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openMorePage('tasks-feed')">
+                      View All Live Feed &rarr;
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -198,40 +272,29 @@
                     <th>Verification Mode</th>
                   </tr>
                 </thead>
-                <tbody id="admRecentActivityTableBody">
-                  <!-- Dynamically rendered -->
+                <tbody id="admRecentActivityTableBodyOverview">
+                  <!-- Dynamically rendered top 5 -->
                 </tbody>
               </table>
             </div>
           </div>
 
-          <!-- User Directory with Search, Filter & Sort -->
+          <!-- User Directory (Preview) -->
           <div class="card">
             <div class="card-header">
               <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
-                <h3 class="card-title" style="margin-bottom: 0;">User Directory</h3>
-                <span class="badge badge-active" id="usersListTotalBadge">0 Members</span>
-              </div>
-            </div>
-
-            <!-- Toolbar -->
-            <div class="toolbar">
-              <div class="search-box">
-                <span id="admSearchIcon"></span>
-                <input type="text" id="admUserSearchInput" placeholder="Search by name, username, email, or phone..." oninput="renderAdminUsers()">
-              </div>
-              <div class="filter-actions">
-                <select id="admUserStatusFilter" onchange="renderAdminUsers()">
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active Only</option>
-                  <option value="suspended">Suspended Only</option>
-                </select>
-                <select id="admUserSortFilter" onchange="renderAdminUsers()">
-                  <option value="points-desc">Highest Points</option>
-                  <option value="points-asc">Lowest Points</option>
-                  <option value="newest" selected>Newest Joined</option>
-                  <option value="oldest">Oldest Joined</option>
-                </select>
+                <div>
+                  <h3 class="card-title" style="margin-bottom: 0;">User Directory (Recent 5)</h3>
+                  <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                    Showing 5 newest members. Open full directory to search, filter & manage.
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="badge badge-active" id="usersListTotalBadge">0 Members</span>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="openMorePage('users')">
+                    Open Full User Directory &rarr;
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -247,8 +310,8 @@
                     <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody id="admUsersTableBody">
-                  <!-- Dynamically rendered -->
+                <tbody id="admUsersTableBodyOverview">
+                  <!-- Dynamically rendered top 5 -->
                 </tbody>
               </table>
             </div>
@@ -538,25 +601,24 @@
             </form>
           </div>
 
-          <!-- Pay-In Records (Account Verification Fees Log) -->
+          <!-- Pay-In Records (Account Verification Fees Log - Preview) -->
           <div class="card" style="border-left: 4px solid var(--primary-green);">
             <div class="card-header">
               <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-                  <h3 class="card-title" style="margin-bottom: 0;">Pay-In Records (Verification Payments)</h3>
-                  <span class="badge badge-approved" id="totalPayInBadge">Total: ₦0.00</span>
+                  <div>
+                    <h3 class="card-title" style="margin-bottom: 0;">Pay-In Records (Recent 5)</h3>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                      Showing 5 latest verification payments. Open full screen for complete log & search.
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-approved" id="totalPayInBadge">Total: ₦0.00</span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openMorePage('pay-ins')">
+                      View All Pay-In Records &rarr;
+                    </button>
+                  </div>
                 </div>
-                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-                  Real-time log of ₦100 verification payments made by users via Paystack.
-                </div>
-              </div>
-            </div>
-
-            <!-- Toolbar for search -->
-            <div class="toolbar" style="margin-bottom: 14px;">
-              <div class="search-box">
-                <span id="admPayInSearchIcon"></span>
-                <input type="text" id="admPayInSearchInput" placeholder="Search by user, email, or reference..." oninput="renderPayInRecords()">
               </div>
             </div>
 
@@ -572,23 +634,30 @@
                     <th>Status</th>
                   </tr>
                 </thead>
-                <tbody id="admPayInTableBody">
-                  <!-- Dynamically rendered -->
+                <tbody id="admPayInTableBodyFinance">
+                  <!-- Dynamically rendered top 5 -->
                 </tbody>
               </table>
             </div>
           </div>
 
-          <!-- Pending Withdrawal Requests Queue -->
+          <!-- Pending Withdrawal Requests Queue (Preview) -->
           <div class="card" style="border-left: 4px solid var(--primary-blue);">
             <div class="card-header">
               <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-                  <h3 class="card-title" style="margin-bottom: 0;">Pending Withdrawal Requests</h3>
-                  <span class="badge badge-pending" id="pendingWithdrawalsBadge">0 Pending</span>
-                </div>
-                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-                  Approve payout to mark as processed or decline to refund points back to the user.
+                  <div>
+                    <h3 class="card-title" style="margin-bottom: 0;">Pending Withdrawal Requests (Recent 5)</h3>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                      Showing 5 latest pending requests. Open full screen to manage all requests.
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-pending" id="pendingWithdrawalsBadge">0 Pending</span>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openMorePage('pending-withdrawals')">
+                      Manage All Pending &rarr;
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -605,17 +674,27 @@
                     <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody id="admPendingWithdrawalsBody">
-                  <!-- Dynamically rendered -->
+                <tbody id="admPendingWithdrawalsBodyFinance">
+                  <!-- Dynamically rendered top 5 -->
                 </tbody>
               </table>
             </div>
           </div>
 
-          <!-- Completed Transactions Log -->
+          <!-- Completed Transactions Log (Preview) -->
           <div class="card">
             <div class="card-header">
-              <h3 class="card-title">Withdrawal Transaction Logs</h3>
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <h3 class="card-title" style="margin-bottom: 0;">Withdrawal Transaction Logs (Recent 5)</h3>
+                  <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                    Showing 5 latest processed transactions. Open full screen for full archive.
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openMorePage('withdrawal-logs')">
+                  View Full Transaction Logs &rarr;
+                </button>
+              </div>
             </div>
             <div class="table-responsive">
               <table>
@@ -629,8 +708,8 @@
                     <th>Processed Date</th>
                   </tr>
                 </thead>
-                <tbody id="admCompletedWithdrawalsBody">
-                  <!-- Dynamically rendered -->
+                <tbody id="admCompletedWithdrawalsBodyFinance">
+                  <!-- Dynamically rendered top 5 -->
                 </tbody>
               </table>
             </div>
@@ -638,71 +717,421 @@
 
         </section>
 
-        <!-- ================= TAB 5: MORE & SUPPORT INBOX ================= -->
+        <!-- ================= TAB 5: MORE PAGES & OPERATIONS HUB ================= -->
         <section id="adm-tab-more" class="tab-panel">
           
-          <div class="card-header" style="margin-bottom: 20px;">
-            <div>
-              <h2 class="card-title" style="font-size: 1.3rem;">Support Inbox</h2>
-              <div style="font-size: 0.85rem; color: var(--text-muted);">
-                Receive and reply to inquiries and payment questions from users.
+          <!-- Master Hub Menu -->
+          <div id="admMoreHubMenu">
+            <div class="card-header" style="margin-bottom: 20px;">
+              <div>
+                <h2 class="card-title" style="font-size: 1.35rem;">More Administration Pages & Tools</h2>
+                <div style="font-size: 0.88rem; color: var(--text-muted); margin-top: 4px;">
+                  Access dedicated screens for user directory, live activity feeds, financial records, support messages, and maintenance.
+                </div>
+              </div>
+            </div>
+
+            <!-- Category 1: User & Task Administration -->
+            <div style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px;">
+              User & Task Management
+            </div>
+            <div class="hub-grid">
+              <div class="hub-card" onclick="openMorePage('users')">
+                <div>
+                  <div class="hub-card-header">
+                    <div class="hub-card-icon">
+                      <span id="hubIconUsers"></span>
+                    </div>
+                    <span class="badge badge-active" id="hubUsersBadge">0 Members</span>
+                  </div>
+                  <div class="hub-card-title">User Directory</div>
+                  <div class="hub-card-desc">
+                    Search, filter, view profiles, adjust points, and manage user verification.
+                  </div>
+                </div>
+                <div class="hub-card-action">Open User Directory &rarr;</div>
+              </div>
+
+              <div class="hub-card" onclick="openMorePage('tasks-feed')">
+                <div>
+                  <div class="hub-card-header">
+                    <div class="hub-card-icon">
+                      <span id="hubIconTasksFeed"></span>
+                    </div>
+                    <span class="badge badge-approved" id="hubTasksBadge">0 Completed</span>
+                  </div>
+                  <div class="hub-card-title">Completed Tasks (Live Feed)</div>
+                  <div class="hub-card-desc">
+                    Real-time audit stream of all user task completions and dwell verifications.
+                  </div>
+                </div>
+                <div class="hub-card-action">View Full Live Feed &rarr;</div>
+              </div>
+            </div>
+
+            <!-- Category 2: Financial & Payout Records -->
+            <div style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-top: 14px; margin-bottom: 8px;">
+              Financial Records & Payouts
+            </div>
+            <div class="hub-grid">
+              <div class="hub-card" onclick="openMorePage('pay-ins')">
+                <div>
+                  <div class="hub-card-header">
+                    <div class="hub-card-icon">
+                      <span id="hubIconPayIns"></span>
+                    </div>
+                    <span class="badge badge-approved" id="hubPayInsBadge">Total: ₦0.00</span>
+                  </div>
+                  <div class="hub-card-title">Pay-In Records</div>
+                  <div class="hub-card-desc">
+                    Full logs of ₦100 verification payments received via Paystack.
+                  </div>
+                </div>
+                <div class="hub-card-action">View Pay-In Records &rarr;</div>
+              </div>
+
+              <div class="hub-card" onclick="openMorePage('pending-withdrawals')">
+                <div>
+                  <div class="hub-card-header">
+                    <div class="hub-card-icon">
+                      <span id="hubIconPending"></span>
+                    </div>
+                    <span class="badge badge-pending" id="hubPendingBadge">0 Pending</span>
+                  </div>
+                  <div class="hub-card-title">Pending Withdrawal Requests</div>
+                  <div class="hub-card-desc">
+                    Approve user payouts to process transfers or decline to refund points.
+                  </div>
+                </div>
+                <div class="hub-card-action">Manage Pending Payouts &rarr;</div>
+              </div>
+
+              <div class="hub-card" onclick="openMorePage('withdrawal-logs')">
+                <div>
+                  <div class="hub-card-header">
+                    <div class="hub-card-icon">
+                      <span id="hubIconLogs"></span>
+                    </div>
+                    <span class="badge badge-active" id="hubLogsBadge">0 Records</span>
+                  </div>
+                  <div class="hub-card-title">Withdrawal Transaction Logs</div>
+                  <div class="hub-card-desc">
+                    Complete historical records of all processed and declined withdrawals.
+                  </div>
+                </div>
+                <div class="hub-card-action">View Payout History &rarr;</div>
+              </div>
+            </div>
+
+            <!-- Category 3: Support & System Tools -->
+            <div style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-top: 14px; margin-bottom: 8px;">
+              Support & Maintenance
+            </div>
+            <div class="hub-grid">
+              <div class="hub-card" onclick="openMorePage('inbox')">
+                <div>
+                  <div class="hub-card-header">
+                    <div class="hub-card-icon">
+                      <span id="hubIconInbox"></span>
+                    </div>
+                    <span class="badge badge-active" id="hubInboxBadge">0 Chats</span>
+                  </div>
+                  <div class="hub-card-title">Support Inbox</div>
+                  <div class="hub-card-desc">
+                    Receive, view, and reply to user support inquiries and image attachments.
+                  </div>
+                </div>
+                <div class="hub-card-action">Open Support Inbox &rarr;</div>
+              </div>
+
+              <div class="hub-card" onclick="openMorePage('cloud-sync')">
+                <div>
+                  <div class="hub-card-header">
+                    <div class="hub-card-icon">
+                      <span id="hubIconCloud"></span>
+                    </div>
+                    <span class="badge badge-approved">JSONBin Connected</span>
+                  </div>
+                  <div class="hub-card-title">Cloud Database & Maintenance</div>
+                  <div class="hub-card-desc">
+                    Perform cloud sync, export JSON backups, and system database maintenance.
+                  </div>
+                </div>
+                <div class="hub-card-action">Open System Tools &rarr;</div>
               </div>
             </div>
           </div>
 
-          <div class="inbox-layout viewing-list" id="admInboxLayout">
-            
-            <div class="inbox-conversations-panel card" style="padding: 14px; margin-bottom: 0;">
-              <h4 style="font-size: 0.82rem; text-transform: uppercase; color: var(--text-muted); padding: 6px 8px; margin-bottom: 6px;">
-                User Conversations
-              </h4>
-              <div id="admConversationList" style="display: flex; flex-direction: column; gap: 8px;">
-                <!-- Dynamically rendered -->
-              </div>
-            </div>
-
-            <div class="inbox-chat-panel chat-container" style="margin-bottom: 0;">
-              <div class="chat-header">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <button type="button" class="inbox-back-btn" onclick="backToConversationList()">
-                    &larr; Back
+          <!-- SUBPAGE 1: Full User Directory -->
+          <div id="admMorePage-users" class="more-subpage card" style="display: none;">
+            <div class="card-header" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                    &larr; Back to More Menu
                   </button>
-                  <div id="admChatCurrentUserAvatar" style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: none; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
-                  </div>
-                  <div>
-                    <strong id="admChatCurrentUserName" style="font-size: 0.95rem;">Select a user to chat</strong>
-                    <div style="font-size: 0.76rem; color: var(--text-muted);" id="admChatCurrentUserEmail"></div>
-                  </div>
+                  <h3 class="card-title" style="margin-bottom: 0;">User Directory (Full Dedicated Screen)</h3>
                 </div>
+                <span class="badge badge-active" id="fullUsersTotalBadge">0 Members</span>
               </div>
-
-              <div class="chat-messages" id="admChatMessages">
-                <div style="text-align: center; color: var(--text-muted); margin: auto;">
-                  Select a user conversation from the list to view message history.
-                </div>
-              </div>
-
-              <form class="chat-input-bar" onsubmit="handleSendAdminReply(event)">
-                <label class="chat-file-btn" title="Attach Image">
-                  <span id="admIconAttach"></span>
-                  <input type="file" id="admChatImageInput" accept="image/*" style="display: none;" onchange="handleAdminChatImagePreview(event)">
-                </label>
-                <div style="flex: 1; display: flex; flex-direction: column;">
-                  <div id="admChatImagePreviewContainer" style="display: none; padding-bottom: 4px;">
-                    <span id="admChatImagePreviewName" style="font-size: 0.75rem; color: var(--text-muted);"></span>
-                    <button type="button" onclick="clearAdminChatImagePreview()" class="btn btn-sm" style="padding: 2px 6px; font-size: 0.7rem; color: red;">Remove</button>
-                  </div>
-                  <input type="text" id="admChatTextInput" placeholder="Type response to user..." required autocomplete="off">
-                </div>
-                <button type="submit" class="btn btn-primary" style="padding: 10px 14px; flex-shrink: 0;">
-                  <span id="admIconSend"></span> <span class="hide-mobile">Send</span>
-                </button>
-              </form>
             </div>
 
+            <!-- Toolbar -->
+            <div class="toolbar">
+              <div class="search-box">
+                <span id="admSearchIconFull"></span>
+                <input type="text" id="admUserSearchInputFull" placeholder="Search by name, username, email, or phone..." oninput="renderAdminUsers()">
+              </div>
+              <div class="filter-actions">
+                <select id="admUserStatusFilterFull" onchange="renderAdminUsers()">
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active Only</option>
+                  <option value="suspended">Suspended Only</option>
+                </select>
+                <select id="admUserSortFilterFull" onchange="renderAdminUsers()">
+                  <option value="points-desc">Highest Points</option>
+                  <option value="points-asc">Lowest Points</option>
+                  <option value="newest" selected>Newest Joined</option>
+                  <option value="oldest">Oldest Joined</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Contact Info</th>
+                    <th>Referral Code</th>
+                    <th>Points Balance</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admUsersTableBodyFull">
+                  <!-- Dynamically rendered full list -->
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div class="card" style="margin-top: 30px;">
+          <!-- SUBPAGE 2: Full Completed Tasks Feed -->
+          <div id="admMorePage-tasks-feed" class="more-subpage card" style="display: none; border-left: 4px solid var(--primary-green);">
+            <div class="card-header" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                    &larr; Back to More Menu
+                  </button>
+                  <div>
+                    <h3 class="card-title" style="margin-bottom: 0;">Completed Tasks (Full Live Feed)</h3>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                      Real-time chronological log of all automated dwell verifications.
+                    </div>
+                  </div>
+                </div>
+                <span class="badge badge-approved" id="fullTasksTotalBadge">0 Completed</span>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Task Completed</th>
+                    <th>Points Awarded</th>
+                    <th>Verification Mode</th>
+                  </tr>
+                </thead>
+                <tbody id="admRecentActivityTableBodyFull">
+                  <!-- Dynamically rendered full feed -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUBPAGE 3: Full Pay-In Records -->
+          <div id="admMorePage-pay-ins" class="more-subpage card" style="display: none; border-left: 4px solid var(--primary-green);">
+            <div class="card-header" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                    &larr; Back to More Menu
+                  </button>
+                  <h3 class="card-title" style="margin-bottom: 0;">Pay-In Records (Account Verification Fees)</h3>
+                </div>
+                <span class="badge badge-approved" id="fullPayInTotalBadge">Total: ₦0.00</span>
+              </div>
+            </div>
+
+            <!-- Toolbar for search -->
+            <div class="toolbar" style="margin-bottom: 14px;">
+              <div class="search-box">
+                <span id="admPayInSearchIconFull"></span>
+                <input type="text" id="admPayInSearchInputFull" placeholder="Search by user, email, or reference..." oninput="renderPayInRecords()">
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date & Time</th>
+                    <th>User</th>
+                    <th>Amount (₦)</th>
+                    <th>Gateway</th>
+                    <th>Reference</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="admPayInTableBodyFull">
+                  <!-- Dynamically rendered full list -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUBPAGE 4: Full Pending Withdrawals -->
+          <div id="admMorePage-pending-withdrawals" class="more-subpage card" style="display: none; border-left: 4px solid var(--primary-blue);">
+            <div class="card-header" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                    &larr; Back to More Menu
+                  </button>
+                  <div>
+                    <h3 class="card-title" style="margin-bottom: 0;">Pending Withdrawal Requests</h3>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                      Approve payouts after sending bank transfer, or decline to refund points.
+                    </div>
+                  </div>
+                </div>
+                <span class="badge badge-pending" id="fullPendingTotalBadge">0 Pending</span>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Points</th>
+                    <th>Amount (₦)</th>
+                    <th>Destination Bank & Account</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admPendingWithdrawalsBodyFull">
+                  <!-- Dynamically rendered full pending list -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUBPAGE 5: Full Withdrawal Transaction Logs -->
+          <div id="admMorePage-withdrawal-logs" class="more-subpage card" style="display: none;">
+            <div class="card-header" style="margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                    &larr; Back to More Menu
+                  </button>
+                  <h3 class="card-title" style="margin-bottom: 0;">Withdrawal Transaction Logs (History)</h3>
+                </div>
+                <span class="badge badge-active" id="fullLogsTotalBadge">0 Records</span>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Amount (₦)</th>
+                    <th>Bank & Account</th>
+                    <th>Status</th>
+                    <th>Processed Date</th>
+                  </tr>
+                </thead>
+                <tbody id="admCompletedWithdrawalsBodyFull">
+                  <!-- Dynamically rendered full logs -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUBPAGE 6: Support Inbox -->
+          <div id="admMorePage-inbox" class="more-subpage" style="display: none;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                &larr; Back to More Menu
+              </button>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Support Inbox & Chat</h3>
+            </div>
+
+            <div class="inbox-layout viewing-list" id="admInboxLayout">
+              <div class="inbox-conversations-panel card" style="padding: 14px; margin-bottom: 0;">
+                <h4 style="font-size: 0.82rem; text-transform: uppercase; color: var(--text-muted); padding: 6px 8px; margin-bottom: 6px;">
+                  User Conversations
+                </h4>
+                <div id="admConversationList" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Dynamically rendered -->
+                </div>
+              </div>
+
+              <div class="inbox-chat-panel chat-container" style="margin-bottom: 0;">
+                <div class="chat-header">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" class="inbox-back-btn" onclick="backToConversationList()">
+                      &larr; Back
+                    </button>
+                    <div id="admChatCurrentUserAvatar" style="width: 36px; height: 36px; border-radius: var(--radius-full); background-color: var(--primary-blue); color: #fff; display: none; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0; font-size: 0.85rem;">
+                    </div>
+                    <div>
+                      <strong id="admChatCurrentUserName" style="font-size: 0.95rem;">Select a user to chat</strong>
+                      <div style="font-size: 0.76rem; color: var(--text-muted);" id="admChatCurrentUserEmail"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="chat-messages" id="admChatMessages">
+                  <div style="text-align: center; color: var(--text-muted); margin: auto;">
+                    Select a user conversation from the list to view message history.
+                  </div>
+                </div>
+
+                <form class="chat-input-bar" onsubmit="handleSendAdminReply(event)">
+                  <label class="chat-file-btn" title="Attach Image">
+                    <span id="admIconAttach"></span>
+                    <input type="file" id="admChatImageInput" accept="image/*" style="display: none;" onchange="handleAdminChatImagePreview(event)">
+                  </label>
+                  <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div id="admChatImagePreviewContainer" style="display: none; padding-bottom: 4px;">
+                      <span id="admChatImagePreviewName" style="font-size: 0.75rem; color: var(--text-muted);"></span>
+                      <button type="button" onclick="clearAdminChatImagePreview()" class="btn btn-sm" style="padding: 2px 6px; font-size: 0.7rem; color: red;">Remove</button>
+                    </div>
+                    <input type="text" id="admChatTextInput" placeholder="Type response to user..." required autocomplete="off">
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="padding: 10px 14px; flex-shrink: 0;">
+                    <span id="admIconSend"></span> <span class="hide-mobile">Send</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBPAGE 7: Cloud Database & Maintenance -->
+          <div id="admMorePage-cloud-sync" class="more-subpage card" style="display: none;">
+            <div style="margin-bottom: 16px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                &larr; Back to More Menu
+              </button>
+            </div>
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
               <h3 class="card-title" style="margin-bottom: 0;">Cloud Database & System Maintenance</h3>
               <span class="badge badge-approved" id="cloudSyncStatusBadge">JSONBin Connected</span>
