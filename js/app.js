@@ -890,7 +890,7 @@ async function verifyUserTaskCompletion() {
   const confirmBtn = document.getElementById('confirmTaskBtn');
   const startBtn = document.getElementById('startTaskBtn');
   const retryBtn = document.getElementById('retryTaskBtn');
-  const reqSec = Math.max(15, Number(currentActiveTask.timerSeconds) || 15);
+  const reqSec = Math.max(5, Number(currentActiveTask.timerSeconds) || 15);
 
   if (!taskStartTime) {
     if (alertBox) {

@@ -437,9 +437,22 @@
 
               <div class="grid-responsive-2">
                 <div class="form-group">
-                  <label class="form-label" for="taskTimerSeconds">Dwell Time (Seconds)</label>
-                  <input type="number" id="taskTimerSeconds" min="5" max="300" value="15" required>
-                  <div class="form-helper">Invisible timer duration for completion.</div>
+                  <label class="form-label">Dwell Verification Duration</label>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                    <div>
+                      <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; font-weight: 600;">Hours</div>
+                      <input type="number" id="taskDwellHours" min="0" max="24" value="0" placeholder="0" oninput="updateCreateTaskDwellSummary()">
+                    </div>
+                    <div>
+                      <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; font-weight: 600;">Minutes</div>
+                      <input type="number" id="taskDwellMinutes" min="0" max="59" value="0" placeholder="0" oninput="updateCreateTaskDwellSummary()">
+                    </div>
+                    <div>
+                      <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; font-weight: 600;">Seconds</div>
+                      <input type="number" id="taskDwellSeconds" min="0" max="59" value="15" placeholder="15" oninput="updateCreateTaskDwellSummary()">
+                    </div>
+                  </div>
+                  <div class="form-helper" id="taskDwellSummary">Total: 15s (Invisible timer duration for completion).</div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="taskMaxCompletions">Max Participants Quota</label>
@@ -1268,8 +1281,22 @@
           <input type="url" id="editTaskUrl" required>
         </div>
         <div class="form-group">
-          <label class="form-label" for="editTaskTimerSeconds">Dwell Time (Seconds)</label>
-          <input type="number" id="editTaskTimerSeconds" min="5" max="300" required>
+          <label class="form-label">Dwell Verification Duration</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+            <div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; font-weight: 600;">Hours</div>
+              <input type="number" id="editTaskDwellHours" min="0" max="24" value="0" placeholder="0" oninput="updateEditTaskDwellSummary()">
+            </div>
+            <div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; font-weight: 600;">Minutes</div>
+              <input type="number" id="editTaskDwellMinutes" min="0" max="59" value="0" placeholder="0" oninput="updateEditTaskDwellSummary()">
+            </div>
+            <div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; font-weight: 600;">Seconds</div>
+              <input type="number" id="editTaskDwellSeconds" min="0" max="59" value="15" placeholder="15" oninput="updateEditTaskDwellSummary()">
+            </div>
+          </div>
+          <div class="form-helper" id="editTaskDwellSummary">Total: 15s (Invisible verification timer for users).</div>
         </div>
         <div class="form-group">
           <label class="form-label" for="editTaskStatus">Status</label>

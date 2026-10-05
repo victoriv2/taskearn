@@ -896,7 +896,55 @@ async function handleToggleUserStatus(userId, newStatus) {
   renderAdminUsers();
 }
 
-// =================== TAB 2: TASKS LIST ===================
+// =================== TAB 2: TASKS LIST & DWELL VERIFICATION ===================
+
+function formatDwellTime(totalSeconds) {
+  const s = Number(totalSeconds) || 0;
+  if (s <= 0) return '0s Dwell';
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+
+  return parts.join(' ') + ' Dwell';
+}
+window.formatDwellTime = formatDwellTime;
+
+function updateCreateTaskDwellSummary() {
+  const h = Math.max(0, parseInt(document.getElementById('taskDwellHours')?.value || '0', 10) || 0);
+  const m = Math.max(0, parseInt(document.getElementById('taskDwellMinutes')?.value || '0', 10) || 0);
+  const s = Math.max(0, parseInt(document.getElementById('taskDwellSeconds')?.value || '0', 10) || 0);
+  const total = (h * 3600) + (m * 60) + s;
+  const summaryEl = document.getElementById('taskDwellSummary');
+  if (summaryEl) {
+    const parts = [];
+    if (h > 0) parts.push(`${h} hr${h > 1 ? 's' : ''}`);
+    if (m > 0) parts.push(`${m} min${m > 1 ? 's' : ''}`);
+    if (s > 0 || parts.length === 0) parts.push(`${s} sec`);
+    summaryEl.textContent = `Total: ${parts.join(' ')} (${total}s) - Invisible timer verification for users.`;
+  }
+}
+window.updateCreateTaskDwellSummary = updateCreateTaskDwellSummary;
+
+function updateEditTaskDwellSummary() {
+  const h = Math.max(0, parseInt(document.getElementById('editTaskDwellHours')?.value || '0', 10) || 0);
+  const m = Math.max(0, parseInt(document.getElementById('editTaskDwellMinutes')?.value || '0', 10) || 0);
+  const s = Math.max(0, parseInt(document.getElementById('editTaskDwellSeconds')?.value || '0', 10) || 0);
+  const total = (h * 3600) + (m * 60) + s;
+  const summaryEl = document.getElementById('editTaskDwellSummary');
+  if (summaryEl) {
+    const parts = [];
+    if (h > 0) parts.push(`${h} hr${h > 1 ? 's' : ''}`);
+    if (m > 0) parts.push(`${m} min${m > 1 ? 's' : ''}`);
+    if (s > 0 || parts.length === 0) parts.push(`${s} sec`);
+    summaryEl.textContent = `Total: ${parts.join(' ')} (${total}s) - Invisible verification timer for users.`;
+  }
+}
+window.updateEditTaskDwellSummary = updateEditTaskDwellSummary;
 
 function renderAdminTasks() {
   const tasks = window.TaskEarnDB.getTasks();
@@ -945,7 +993,7 @@ function renderAdminTasks() {
         </td>
         <td><span class="badge badge-active">${escapeHtml(t.category)}</span></td>
         <td><strong>${t.points} PTS</strong></td>
-        <td><span class="badge badge-approved">${t.timerSeconds || 15}s Dwell</span></td>
+        <td><span class="badge badge-approved">${formatDwellTime(t.timerSeconds || 15)}</span></td>
         <td>${t.completionsCount || 0} / ${t.maxCompletions}</td>
         <td>
           <span class="badge ${isHidden ? 'badge-hidden' : 'badge-approved'}">
@@ -1003,7 +1051,17 @@ function openEditTaskModal(taskId) {
   document.getElementById('editTaskTitle').value = task.title;
   document.getElementById('editTaskPoints').value = task.points;
   document.getElementById('editTaskUrl').value = task.targetUrl;
-  document.getElementById('editTaskTimerSeconds').value = task.timerSeconds || 15;
+  
+  const totalSec = task.timerSeconds || 15;
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  if (document.getElementById('editTaskDwellHours')) document.getElementById('editTaskDwellHours').value = hours;
+  if (document.getElementById('editTaskDwellMinutes')) document.getElementById('editTaskDwellMinutes').value = minutes;
+  if (document.getElementById('editTaskDwellSeconds')) document.getElementById('editTaskDwellSeconds').value = seconds;
+  updateEditTaskDwellSummary();
+
   document.getElementById('editTaskStatus').value = task.status;
   if (window.TaskEarnModalSelect) {
     window.TaskEarnModalSelect.sync('editTaskStatus');
@@ -1026,7 +1084,13 @@ async function handleSaveTaskEdit(event) {
   const title = document.getElementById('editTaskTitle').value;
   const points = Number(document.getElementById('editTaskPoints').value);
   const targetUrl = document.getElementById('editTaskUrl').value;
-  const timerSeconds = Number(document.getElementById('editTaskTimerSeconds').value);
+  
+  const dwellH = Math.max(0, parseInt(document.getElementById('editTaskDwellHours')?.value || '0', 10) || 0);
+  const dwellM = Math.max(0, parseInt(document.getElementById('editTaskDwellMinutes')?.value || '0', 10) || 0);
+  const dwellS = Math.max(0, parseInt(document.getElementById('editTaskDwellSeconds')?.value || '0', 10) || 0);
+  let timerSeconds = (dwellH * 3600) + (dwellM * 60) + dwellS;
+  if (timerSeconds < 5) timerSeconds = 5;
+
   const status = document.getElementById('editTaskStatus').value;
   const description = document.getElementById('editTaskDesc').value;
 
@@ -1080,7 +1144,11 @@ async function handleCreateTaskSubmit(event) {
   const category = document.getElementById('taskCategory')?.value || 'Website';
   const points = Number(document.getElementById('taskPoints')?.value);
   const targetUrl = (document.getElementById('taskTargetUrl')?.value || '').trim();
-  const timerSeconds = Number(document.getElementById('taskTimerSeconds')?.value) || 15;
+  const dwellH = Math.max(0, parseInt(document.getElementById('taskDwellHours')?.value || '0', 10) || 0);
+  const dwellM = Math.max(0, parseInt(document.getElementById('taskDwellMinutes')?.value || '0', 10) || 0);
+  const dwellS = Math.max(0, parseInt(document.getElementById('taskDwellSeconds')?.value || '0', 10) || 0);
+  let timerSeconds = (dwellH * 3600) + (dwellM * 60) + dwellS;
+  if (timerSeconds < 5) timerSeconds = 5;
   const maxCompletions = Number(document.getElementById('taskMaxCompletions')?.value) || 1000;
   const description = (document.getElementById('taskDescription')?.value || '').trim();
   const alertEl = document.getElementById('createTaskAlert');
@@ -1138,6 +1206,7 @@ async function handleCreateTaskSubmit(event) {
       window.TaskEarnModalSelect.sync('taskCategory');
     }
     updateCreateTaskNairaPreview();
+    updateCreateTaskDwellSummary();
 
     setTimeout(() => {
       if (alertEl) alertEl.style.display = 'none';
