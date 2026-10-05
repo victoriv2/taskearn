@@ -759,11 +759,31 @@ function openTaskModal(taskId) {
   document.getElementById('taskModal').classList.add('open');
 }
 
-function closeTaskModal() {
+async function closeTaskModal(force = false) {
+  if (!force && taskStartTime) {
+    const proceed = await window.showCustomConfirm(
+      'You have not completed or verified this task yet. If you close now, no points will be credited to your account. Are you sure you want to exit?',
+      {
+        title: 'Task Incomplete',
+        confirmText: 'Exit Anyway',
+        cancelText: 'Stay & Complete',
+        danger: true
+      }
+    );
+    if (!proceed) return;
+  }
   document.getElementById('taskModal').classList.remove('open');
   currentActiveTask = null;
   taskStartTime = null;
 }
+window.closeTaskModal = closeTaskModal;
+
+// Close task modal on backdrop click with confirmation protection
+document.getElementById('taskModal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'taskModal') {
+    closeTaskModal();
+  }
+});
 
 // User clicks "Perform Task" -> opens link in new tab -> records start timestamp
 function performTaskAction() {
@@ -794,9 +814,8 @@ function performTaskAction() {
   if (statusBox) {
     statusBox.style.display = 'block';
     if (headline) headline.textContent = 'Task Link Opened';
-    const reqSec = Math.max(20, Number(currentActiveTask.timerSeconds) || 20);
     if (subtext) {
-      subtext.innerHTML = `Perform the task on the opened page. You must spend at least <strong>${reqSec} seconds</strong> there. When done, click <strong>"I Have Performed Task"</strong> above.`;
+      subtext.innerHTML = `Perform the required task on the opened page. When completed, return here and click <strong>"I Have Performed Task"</strong> above.`;
     }
   }
 
@@ -804,13 +823,13 @@ function performTaskAction() {
   if (alertBox) alertBox.style.display = 'none';
 }
 
-// User clicks "I Have Performed Task" -> verify they spent at least 20 seconds
+// User clicks "I Have Performed Task" -> verify completion smartly without exposing dwell metrics
 async function verifyUserTaskCompletion() {
   if (!currentActiveTask || !activeUser) return;
 
   const alertBox = document.getElementById('modalTaskAlert');
   const confirmBtn = document.getElementById('confirmTaskBtn');
-  const reqSec = Math.max(20, Number(currentActiveTask.timerSeconds) || 20);
+  const reqSec = Math.max(15, Number(currentActiveTask.timerSeconds) || 15);
 
   if (!taskStartTime) {
     if (alertBox) {
@@ -823,18 +842,17 @@ async function verifyUserTaskCompletion() {
 
   const elapsedSeconds = Math.floor((Date.now() - taskStartTime) / 1000);
 
-  // If performed under required dwell time (e.g. under 20s), reject!
+  // If performed under required dwell time (under 15s), reject smartly without exposing how the system verifies it
   if (elapsedSeconds < reqSec) {
-    const remaining = reqSec - elapsedSeconds;
     if (alertBox) {
       alertBox.className = 'alert alert-error';
-      alertBox.innerHTML = `Task Not Completed: You only spent <strong>${elapsedSeconds} seconds</strong>. You must perform the task for at least <strong>${reqSec} seconds</strong> (<strong>${remaining}s remaining</strong>). Please go back and complete the task.`;
+      alertBox.textContent = 'Task Incomplete: We could not verify your task action. Please ensure you open the link, follow all instructions, and complete the action properly before submitting.';
       alertBox.style.display = 'block';
     }
     return;
   }
 
-  // Spent 20 seconds or more: success!
+  // Verification passed: credit reward!
   try {
     if (confirmBtn) {
       confirmBtn.disabled = true;
@@ -859,7 +877,7 @@ async function verifyUserTaskCompletion() {
     updateWalletHeader();
 
     setTimeout(() => {
-      closeTaskModal();
+      closeTaskModal(true);
       renderUserTasks();
     }, 1200);
 

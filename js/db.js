@@ -799,8 +799,8 @@ class DataStore {
   getTasks() {
     const tasks = this._get(STORAGE_KEYS.TASKS);
     return tasks.map(t => {
-      if (!t.timerSeconds || t.timerSeconds < 20) {
-        return { ...t, timerSeconds: 20 };
+      if (!t.timerSeconds || t.timerSeconds < 15) {
+        return { ...t, timerSeconds: 15 };
       }
       return t;
     });
@@ -818,7 +818,7 @@ class DataStore {
       category: taskData.category || 'General',
       targetUrl: taskData.targetUrl.trim(),
       points: Number(taskData.points) || 10,
-      timerSeconds: Math.max(20, Number(taskData.timerSeconds) || 20),
+      timerSeconds: Math.max(15, Number(taskData.timerSeconds) || 15),
       description: taskData.description.trim(),
       status: 'active',
       completionsCount: 0,
