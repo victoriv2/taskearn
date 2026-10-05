@@ -506,6 +506,11 @@ function switchUserTab(tabName) {
 
   if (tabName === 'tasks') {
     renderUserTasks();
+    if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud) {
+      window.TaskEarnDB.pullFromCloud().then(() => {
+        renderUserTasks();
+      }).catch(() => {});
+    }
   } else if (tabName === 'withdrawals') {
     renderWithdrawalsTab();
   } else if (tabName === 'messages') {
@@ -568,6 +573,20 @@ function updateWalletHeader() {
 }
 
 // =================== TAB 1: TASKS ===================
+
+function getTaskPlatformIcon(category) {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('youtube') && window.ICONS?.youtube) return window.ICONS.youtube;
+  if (cat.includes('instagram') && window.ICONS?.instagram) return window.ICONS.instagram;
+  if ((cat.includes('twitter') || cat.includes(' x')) && window.ICONS?.twitter) return window.ICONS.twitter;
+  if (cat.includes('tiktok') && window.ICONS?.tiktok) return window.ICONS.tiktok;
+  if (cat.includes('telegram') && window.ICONS?.telegram) return window.ICONS.telegram;
+  if (cat.includes('facebook') && window.ICONS?.facebook) return window.ICONS.facebook;
+  if (cat.includes('whatsapp') && window.ICONS?.whatsapp) return window.ICONS.whatsapp;
+  if (cat.includes('video') && window.ICONS?.video) return window.ICONS.video;
+  if (cat.includes('website') && window.ICONS?.globe) return window.ICONS.globe;
+  return window.ICONS?.tasks || '';
+}
 
 function renderUserTasks() {
   if (!activeUser) return;
@@ -643,7 +662,7 @@ function renderUserTasks() {
         <div class="task-item">
           <div class="task-info-main">
             <div class="task-icon-badge">
-              ${task.category.toLowerCase().includes('video') ? window.ICONS.video : window.ICONS.tasks}
+              ${getTaskPlatformIcon(task.category)}
             </div>
             <div class="task-details">
               <div class="task-meta">
@@ -783,6 +802,9 @@ function performTaskAction() {
           taskId: currentActiveTask.id,
           userId: activeUser.id
         });
+        if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+          window.TaskEarnDB.pushToCloud().catch(() => {});
+        }
 
         headline.textContent = 'Verified!';
         subtext.textContent = `+${currentActiveTask.points} Points credited to your account.`;

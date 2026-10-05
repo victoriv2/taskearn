@@ -765,11 +765,14 @@ function renderAdminTasks() {
   }).join('');
 }
 
-function toggleTaskVisibility(taskId) {
+async function toggleTaskVisibility(taskId) {
   const task = window.TaskEarnDB.getTaskById(taskId);
   if (!task) return;
   const nextStatus = task.status === 'hidden' ? 'active' : 'hidden';
   window.TaskEarnDB.updateTask(taskId, { status: nextStatus });
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    await window.TaskEarnDB.pushToCloud();
+  }
   renderAdminTasks();
 }
 
@@ -809,8 +812,11 @@ function closeEditTaskModal() {
   document.getElementById('editTaskModal').classList.remove('open');
 }
 
-function handleSaveTaskEdit(event) {
+async function handleSaveTaskEdit(event) {
   event.preventDefault();
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  const originalBtnText = submitBtn ? submitBtn.textContent : 'Save Changes';
+
   const id = document.getElementById('editTaskId').value;
   const title = document.getElementById('editTaskTitle').value;
   const points = Number(document.getElementById('editTaskPoints').value);
@@ -819,9 +825,29 @@ function handleSaveTaskEdit(event) {
   const status = document.getElementById('editTaskStatus').value;
   const description = document.getElementById('editTaskDesc').value;
 
-  window.TaskEarnDB.updateTask(id, { title, points, targetUrl, timerSeconds, status, description });
-  closeEditTaskModal();
-  renderAdminTasks();
+  try {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving & Syncing...';
+    }
+
+    window.TaskEarnDB.updateTask(id, { title, points, targetUrl, timerSeconds, status, description });
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      await window.TaskEarnDB.pushToCloud();
+    }
+    closeEditTaskModal();
+    renderAdminTasks();
+  } catch (err) {
+    await window.showCustomAlert('Error saving task: ' + err.message, {
+      title: 'Update Failed',
+      type: 'error'
+    });
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
+  }
 }
 
 // =================== TAB 3: CREATE TASK (+) ===================
@@ -839,18 +865,48 @@ function updateCreateTaskNairaPreview() {
 
 document.getElementById('taskPoints')?.addEventListener('input', updateCreateTaskNairaPreview);
 
-function handleCreateTaskSubmit(event) {
+async function handleCreateTaskSubmit(event) {
   event.preventDefault();
-  const title = document.getElementById('taskTitle').value;
-  const category = document.getElementById('taskCategory').value;
-  const points = Number(document.getElementById('taskPoints').value);
-  const targetUrl = document.getElementById('taskTargetUrl').value;
-  const timerSeconds = Number(document.getElementById('taskTimerSeconds').value) || 15;
-  const maxCompletions = Number(document.getElementById('taskMaxCompletions').value);
-  const description = document.getElementById('taskDescription').value;
+  const form = event.target;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalBtnText = submitBtn ? submitBtn.textContent : 'Publish Task';
+
+  const title = (document.getElementById('taskTitle')?.value || '').trim();
+  const category = document.getElementById('taskCategory')?.value || 'Website';
+  const points = Number(document.getElementById('taskPoints')?.value);
+  const targetUrl = (document.getElementById('taskTargetUrl')?.value || '').trim();
+  const timerSeconds = Number(document.getElementById('taskTimerSeconds')?.value) || 15;
+  const maxCompletions = Number(document.getElementById('taskMaxCompletions')?.value) || 1000;
+  const description = (document.getElementById('taskDescription')?.value || '').trim();
   const alertEl = document.getElementById('createTaskAlert');
 
+  if (!title || !targetUrl || !points || !description) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Please fill in all required task fields.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
   try {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Publishing & Syncing to Cloud...';
+    }
+
+    if (alertEl) {
+      alertEl.className = 'alert alert-info';
+      alertEl.textContent = 'Synchronizing with JSONBin cloud...';
+      alertEl.style.display = 'block';
+    }
+
+    // 1. Pull latest cloud data before adding to prevent overwriting concurrent state
+    if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud) {
+      await window.TaskEarnDB.pullFromCloud(true);
+    }
+
+    // 2. Create the task in local cache
     window.TaskEarnDB.createTask({
       title,
       category,
@@ -861,19 +917,39 @@ function handleCreateTaskSubmit(event) {
       description
     });
 
-    alertEl.className = 'alert alert-success';
-    alertEl.textContent = 'Task published successfully! Live in user catalog.';
-    alertEl.style.display = 'block';
+    // 3. Immediately push the updated database to JSONBin cloud
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      await window.TaskEarnDB.pushToCloud();
+    }
 
-    document.getElementById('createTaskForm').reset();
+    if (alertEl) {
+      alertEl.className = 'alert alert-success';
+      alertEl.textContent = 'Task published successfully and synced to cloud across all devices!';
+      alertEl.style.display = 'block';
+    }
+
+    form.reset();
+    if (window.TaskEarnModalSelect) {
+      window.TaskEarnModalSelect.sync('taskCategory');
+    }
+    updateCreateTaskNairaPreview();
+
     setTimeout(() => {
-      alertEl.style.display = 'none';
+      if (alertEl) alertEl.style.display = 'none';
       switchAdminTab('tasks');
     }, 1200);
+
   } catch (err) {
-    alertEl.className = 'alert alert-error';
-    alertEl.textContent = err.message;
-    alertEl.style.display = 'block';
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Failed to publish task: ' + err.message;
+      alertEl.style.display = 'block';
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
   }
 }
 
