@@ -526,6 +526,15 @@
                 </div>
               </div>
 
+              <div class="form-group" style="margin-top: 14px;">
+                <label class="form-label" for="settingPaystackSecretKey">Paystack Live Secret Key</label>
+                <div style="position: relative;">
+                  <input type="password" id="settingPaystackSecretKey" required placeholder="Enter Paystack Live Secret Key" style="padding-right: 42px; font-family: monospace;">
+                  <button type="button" class="password-toggle-btn" aria-label="Show secret key" title="Show secret key" onclick="togglePasswordVisibility('settingPaystackSecretKey', this)"></button>
+                </div>
+                <div class="form-helper">Live Secret Key used to automatically debit your Paystack balance when approving withdrawal payouts.</div>
+              </div>
+
               <div class="grid-responsive-2" style="margin-top: 14px;">
                 <div class="form-group">
                   <label class="form-label" for="settingAdminPhone">Admin Support Phone (11 Digits)</label>
@@ -1342,6 +1351,65 @@
         </div>
         <div id="admNewChatUserList" style="display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto;">
           <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payout Approval & Paystack Debit Modal -->
+  <div id="admPayoutModal" class="modal-backdrop" onclick="if(event.target === this) closeAdminPayoutModal()">
+    <div class="modal-dialog" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="card-title" style="margin: 0; font-size: 1.05rem;">Authorize Withdrawal Payout</h3>
+        <button type="button" class="modal-close" onclick="closeAdminPayoutModal()" aria-label="Close modal" title="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div style="padding: 20px;">
+        <div id="payoutModalAlert" style="display: none; margin-bottom: 14px;"></div>
+        
+        <div style="background: var(--bg-surface-alt, #f8fafc); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+            <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Payout Amount:</span>
+            <span id="payoutModalAmount" style="font-size: 1.35rem; font-weight: 800; color: var(--primary-green-dark);">₦0.00</span>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Recipient:</span>
+              <strong id="payoutModalUser" style="color: var(--text-main);">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Bank Name:</span>
+              <strong id="payoutModalBank" style="color: var(--text-main);">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Account Number:</span>
+              <strong id="payoutModalAccountNum" style="font-family: monospace; letter-spacing: 1px; color: var(--text-main);">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Account Name:</span>
+              <strong id="payoutModalAccountName" style="color: var(--text-main);">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px;">
+          <strong style="color: #1e40af;">Automated Debit Source:</strong> Funds will be debited directly from your live Paystack balance and transferred to the recipient's bank account via Paystack Transfers API.
+        </div>
+
+        <div id="payoutActionButtons" style="display: flex; flex-direction: column; gap: 10px;">
+          <button type="button" id="btnConfirmPaystackPayout" class="btn btn-primary btn-block" style="padding: 12px; font-weight: 700;" onclick="executePaystackPayout()">
+            Authorize & Transfer via Paystack
+          </button>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" id="btnManualPayoutBypass" class="btn btn-secondary" style="flex: 1; font-size: 0.82rem;" onclick="executeManualPayoutBypass()">
+              Approve Manually (Bypass Paystack)
+            </button>
+            <button type="button" class="btn btn-outline" style="flex: 0 0 80px;" onclick="closeAdminPayoutModal()">
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>

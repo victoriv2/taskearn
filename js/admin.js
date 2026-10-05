@@ -1444,6 +1444,9 @@ function loadFinancialSettings(force = false) {
   const paystackKeyInput = document.getElementById('settingPaystackKey');
   if (paystackKeyInput) paystackKeyInput.value = settings.paystackPublicKey || 'pk_live_732d9b62cd035b8dad96e981d7f6982540342e80';
 
+  const paystackSecretInput = document.getElementById('settingPaystackSecretKey');
+  if (paystackSecretInput) paystackSecretInput.value = settings.paystackSecretKey || (window.TaskEarnDB && window.TaskEarnDB.getSettings().paystackSecretKey) || '';
+
   const adminPhoneInput = document.getElementById('settingAdminPhone');
   if (adminPhoneInput) adminPhoneInput.value = settings.adminPhone || '08012345678';
 
@@ -1458,6 +1461,7 @@ async function handleSaveFinancialSettings(event) {
   const minWithdrawalNaira = parseFloat(document.getElementById('settingMinWithdrawal')?.value);
   const verificationFeeNaira = parseFloat(document.getElementById('settingVerificationFee')?.value);
   const paystackPublicKey = (document.getElementById('settingPaystackKey')?.value || '').trim();
+  const paystackSecretKey = (document.getElementById('settingPaystackSecretKey')?.value || '').trim();
   const adminPhoneInput = (document.getElementById('settingAdminPhone')?.value || '').trim();
   const adminEmailInput = (document.getElementById('settingAdminEmail')?.value || '').trim();
   const alertEl = document.getElementById('financialSettingsAlert');
@@ -1509,6 +1513,15 @@ async function handleSaveFinancialSettings(event) {
     return;
   }
 
+  if (!paystackSecretKey) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Paystack secret key is required for automated payouts.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
   let adminPhone = '';
   if (adminPhoneInput) {
     const cleanAdminPhone = adminPhoneInput.replace(/[\s-]/g, '');
@@ -1538,6 +1551,7 @@ async function handleSaveFinancialSettings(event) {
     minWithdrawalNaira,
     verificationFeeNaira,
     paystackPublicKey,
+    paystackSecretKey,
     adminPhone,
     adminEmail: adminEmailInput
   };
@@ -1781,8 +1795,191 @@ function createPendingWithdrawalRowHtml(w, uObj) {
   `;
 }
 
+// Comprehensive Nigerian Bank Codes Map for Paystack Transfers API
+const PAYSTACK_BANK_CODES = {
+  // Commercial Banks & Common Names
+  "access bank": "044",
+  "access bank (diamond)": "063",
+  "citibank nigeria": "023",
+  "citibank": "023",
+  "ecobank nigeria": "050",
+  "ecobank": "050",
+  "fidelity bank": "070",
+  "fidelity": "070",
+  "first bank of nigeria": "011",
+  "first bank": "011",
+  "first city monument bank (fcmb)": "214",
+  "first city monument bank": "214",
+  "fcmb": "214",
+  "globus bank": "00103",
+  "guaranty trust bank (gtbank)": "058",
+  "guaranty trust bank": "058",
+  "gtbank": "058",
+  "gt bank": "058",
+  "heritage bank": "030",
+  "jaiz bank": "301",
+  "keystone bank": "082",
+  "lotus bank": "303",
+  "optimum bank": "107",
+  "optimus bank": "107",
+  "optimus bank limited": "107",
+  "parallex bank": "104",
+  "polaris bank": "076",
+  "premiumtrust bank": "105",
+  "providus bank": "101",
+  "providusunity bank": "215",
+  "signature bank": "106",
+  "signature bank ltd": "106",
+  "stanbic ibtc bank": "221",
+  "stanbic": "221",
+  "standard chartered bank nigeria": "068",
+  "standard chartered bank": "068",
+  "standard chartered": "068",
+  "sterling bank": "232",
+  "summit bank": "00305",
+  "suntrust bank": "100",
+  "tajbank": "302",
+  "taj bank": "302",
+  "tatum bank": "109",
+  "the alternative bank": "000304",
+  "alternative bank": "000304",
+  "titan bank": "102",
+  "titan trust bank": "102",
+  "union bank of nigeria": "032",
+  "union bank": "032",
+  "united bank for africa (uba)": "033",
+  "united bank for africa": "033",
+  "uba": "033",
+  "unity bank": "215",
+  "wema bank": "035",
+  "alat by wema": "035A",
+  "zenith bank": "057",
+  "zenith": "057",
+
+  // Fintechs, Digital Banks & PSBs
+  "opay": "999992",
+  "opay digital services limited (opay)": "999992",
+  "palmpay": "999991",
+  "kuda": "50211",
+  "kuda bank": "50211",
+  "kuda microfinance bank": "50211",
+  "moniepoint": "50515",
+  "moniepoint mfb": "50515",
+  "moniepoint microfinance bank": "50515",
+  "carbon": "565",
+  "fairmoney": "51318",
+  "fairmoney microfinance bank": "51318",
+  "gomoney (sterling mfb)": "100022",
+  "gomoney": "100022",
+  "rubies bank": "125",
+  "rubies mfb": "125",
+  "sparkle": "51310",
+  "sparkle microfinance bank": "51310",
+  "vfd microfinance bank": "566",
+  "vfd mfb": "566",
+  "vfd": "566",
+  "dot microfinance bank": "50162",
+  "dot mfb": "50162",
+  "eyowo microfinance bank": "50126",
+  "eyowo": "50126",
+  "mintyn": "50304",
+  "9 payment service bank (9psb)": "120001",
+  "9psb": "120001",
+  "9mobile 9payment service bank": "120001",
+  "hope payment service bank": "120002",
+  "hopepsb": "120002",
+  "momo psb": "120003",
+  "mtn momo psb": "120003",
+  "smartcash psb": "120004",
+  "airtel smartcash psb": "120004",
+  "moneymaster psb": "120005",
+
+  // Microfinance, Mortgage & Specialized Institutions
+  "abbey mortgage bank": "404",
+  "ab microfinance bank": "51204",
+  "accion microfinance bank": "602",
+  "alpha morgan bank": "108",
+  "aso savings and loans": "401",
+  "bank of agriculture (boa)": "90367",
+  "bank of industry (boi)": "90367",
+  "baobab microfinance bank": "MFB50992",
+  "branch microfinance bank": "FC40163",
+  "brent mortgage bank": "90070",
+  "coronation merchant bank": "559",
+  "fbnquest merchant bank": "560",
+  "greenwich merchant bank": "562",
+  "infinity trust mortgage bank": "402",
+  "livingtrust mortgage bank": "031",
+  "living trust mortgage bank": "031",
+  "nova commercial bank": "561",
+  "nownow digital systems (nownow mfb)": "50315",
+  "npf microfinance bank": "50629",
+  "rand merchant bank nigeria (rmb)": "502",
+  "raven bank (raven mfb)": "50315",
+  "renmoney microfinance bank": "51049"
+};
+
+let _paystackBanksCache = null;
+
+async function resolvePaystackBankCode(rawBankName, secretKey) {
+  if (!rawBankName) return null;
+  const clean = rawBankName.trim().toLowerCase();
+
+  // 1. Exact match in dictionary
+  if (PAYSTACK_BANK_CODES[clean]) {
+    return PAYSTACK_BANK_CODES[clean];
+  }
+
+  // 2. Simplified match (strip 'bank', 'microfinance', 'mfb', brackets)
+  const simplified = clean
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\b(bank|microfinance|mfb|ltd|limited|plc|systems)\b/g, '')
+    .trim();
+
+  if (simplified && PAYSTACK_BANK_CODES[simplified]) {
+    return PAYSTACK_BANK_CODES[simplified];
+  }
+
+  for (const [key, code] of Object.entries(PAYSTACK_BANK_CODES)) {
+    if (key.includes(simplified) || (simplified && simplified.includes(key))) {
+      return code;
+    }
+  }
+
+  // 3. Dynamic lookup against Paystack API
+  try {
+    if (!_paystackBanksCache && secretKey) {
+      const res = await fetch('https://api.paystack.co/bank?country=nigeria&perPage=500', {
+        headers: { Authorization: `Bearer ${secretKey}` }
+      });
+      const json = await res.json();
+      if (json && json.status && Array.isArray(json.data)) {
+        _paystackBanksCache = json.data;
+      }
+    }
+
+    if (Array.isArray(_paystackBanksCache)) {
+      const found = _paystackBanksCache.find(b => {
+        const bName = (b.name || '').toLowerCase();
+        const bSlug = (b.slug || '').toLowerCase();
+        return bName === clean || bSlug === clean || (simplified && (bName.includes(simplified) || simplified.includes(bName)));
+      });
+      if (found && found.code) {
+        return found.code;
+      }
+    }
+  } catch (err) {
+    console.warn('Dynamic Paystack bank code lookup error:', err);
+  }
+
+  return null;
+}
+
 function createCompletedWithdrawalRowHtml(w, uObj) {
   const isApproved = w.status === 'approved';
+  const paystackRef = w.paystackTransfer?.reference || w.paystackReference || '';
+  const gateway = w.paystackTransfer?.gateway || (paystackRef ? 'Paystack Debit' : (isApproved ? 'Manual Transfer' : ''));
+
   return `
     <tr>
       <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
@@ -1798,156 +1995,257 @@ function createCompletedWithdrawalRowHtml(w, uObj) {
         </div>
       </td>
       <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
-      <td>${escapeHtml(w.bankName)} &bull; ${escapeHtml(w.accountNumber)}</td>
+      <td>
+        <div>${escapeHtml(w.bankName)} &bull; ${escapeHtml(w.accountNumber)}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(w.accountName || '')}</div>
+      </td>
       <td>
         <span class="badge ${isApproved ? 'badge-approved' : 'badge-declined'}">
           ${w.status.toUpperCase()}
         </span>
-        ${w.declineReason ? `<div style="font-size: 0.75rem; color: #991b1b;">Reason: ${escapeHtml(w.declineReason)}</div>` : ''}
+        ${gateway ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px;">Via: ${escapeHtml(gateway)}</div>` : ''}
+        ${paystackRef ? `<div style="font-size: 0.72rem; font-family: monospace; color: var(--primary-blue); margin-top: 2px;" title="Paystack Transfer Ref: ${escapeHtml(paystackRef)}">Ref: ${escapeHtml(paystackRef)}</div>` : ''}
+        ${w.declineReason ? `<div style="font-size: 0.75rem; color: #991b1b; margin-top: 3px;">Reason: ${escapeHtml(w.declineReason)}</div>` : ''}
       </td>
       <td>${w.processedAt ? new Date(w.processedAt).toLocaleDateString() : 'N/A'}</td>
     </tr>
   `;
 }
 
-// Withdrawals Queue & Completed Logs (Both Financial Preview & Full Screen)
-function renderWithdrawalsQueue() {
-  const withdrawals = window.TaskEarnDB.getWithdrawals();
-  const allUsers = window.TaskEarnDB.getUsers();
-  const userMap = {};
-  allUsers.forEach(u => { userMap[u.id] = u; });
+// Modal State & Payout Processing Handlers
+let currentPayoutWithdrawalId = null;
 
-  const pending = withdrawals.filter(w => w.status === 'pending');
-  const completed = withdrawals.filter(w => w.status !== 'pending');
-
-  const pendingBadge = document.getElementById('pendingWithdrawalsBadge');
-  if (pendingBadge) pendingBadge.textContent = `${pending.length} Pending`;
-
-  const fullPendingBadge = document.getElementById('fullPendingTotalBadge');
-  const fullLogsBadge = document.getElementById('fullLogsTotalBadge');
-
-  const financePendingBody = document.getElementById('admPendingWithdrawalsBodyFinance') || document.getElementById('admPendingWithdrawalsBody');
-  const fullPendingBody = document.getElementById('admPendingWithdrawalsBodyFull');
-
-  const emptyPendingMsg = `
-    <tr>
-      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-        No pending withdrawal requests. All payouts are cleared!
-      </td>
-    </tr>
-  `;
-
-  // Financial preview tab (scrollable within max 5 items height)
-  if (financePendingBody) {
-    if (pending.length === 0) {
-      financePendingBody.innerHTML = emptyPendingMsg;
-    } else {
-      financePendingBody.innerHTML = pending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
-    }
+function openAdminPayoutModal(withdrawalId) {
+  const wdr = window.TaskEarnDB.getWithdrawals().find(w => w.id === withdrawalId);
+  if (!wdr) {
+    window.showCustomAlert('Withdrawal request not found.', { title: 'Not Found', type: 'error' });
+    return;
   }
 
-  // Full pending subpage with search
-  if (fullPendingBody) {
-    const pendingSearchInput = document.getElementById('admPendingWithdrawalsSearchInputFull');
-    const pendingQuery = (pendingSearchInput?.value || '').toLowerCase().trim();
-    let filteredPending = pending;
+  currentPayoutWithdrawalId = withdrawalId;
 
-    if (pendingQuery) {
-      filteredPending = pending.filter(w => {
-        const u = userMap[w.userId];
-        const userName = (w.userName || (u ? `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}` : '')).toLowerCase();
-        const userId = (w.userId || '').toLowerCase();
-        const bankName = (w.bankName || '').toLowerCase();
-        const accNum = (w.accountNumber || '').toLowerCase();
-        const accName = (w.accountName || '').toLowerCase();
-        const amount = String(w.amountNaira || '');
-        const points = String(w.points || '');
-        return userName.includes(pendingQuery) || userId.includes(pendingQuery) || bankName.includes(pendingQuery) || accNum.includes(pendingQuery) || accName.includes(pendingQuery) || amount.includes(pendingQuery) || points.includes(pendingQuery);
-      });
-    }
+  const amtEl = document.getElementById('payoutModalAmount');
+  const userEl = document.getElementById('payoutModalUser');
+  const bankEl = document.getElementById('payoutModalBank');
+  const accNumEl = document.getElementById('payoutModalAccountNum');
+  const accNameEl = document.getElementById('payoutModalAccountName');
+  const alertEl = document.getElementById('payoutModalAlert');
+  const btnPaystack = document.getElementById('btnConfirmPaystackPayout');
+  const btnBypass = document.getElementById('btnManualPayoutBypass');
 
-    if (fullPendingBadge) {
-      fullPendingBadge.textContent = pendingQuery 
-        ? `${filteredPending.length} of ${pending.length} Found`
-        : `${pending.length} Pending`;
-    }
+  if (amtEl) amtEl.textContent = `₦${Number(wdr.amountNaira || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  if (userEl) userEl.textContent = `${wdr.userName || 'User'} (${wdr.userId})`;
+  if (bankEl) bankEl.textContent = wdr.bankName || '-';
+  if (accNumEl) accNumEl.textContent = wdr.accountNumber || '-';
+  if (accNameEl) accNameEl.textContent = wdr.accountName || wdr.userName || '-';
 
-    if (filteredPending.length === 0) {
-      fullPendingBody.innerHTML = `
-        <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-            ${pendingQuery ? 'No pending withdrawal requests match your search.' : 'No pending withdrawal requests. All payouts are cleared!'}
-          </td>
-        </tr>
-      `;
-    } else {
-      fullPendingBody.innerHTML = filteredPending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
-    }
+  if (alertEl) {
+    alertEl.style.display = 'none';
+    alertEl.textContent = '';
   }
 
-  const financeCompletedBody = document.getElementById('admCompletedWithdrawalsBodyFinance') || document.getElementById('admCompletedWithdrawalsBody');
-  const fullCompletedBody = document.getElementById('admCompletedWithdrawalsBodyFull');
-
-  const emptyCompletedMsg = `
-    <tr>
-      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-        No completed transactions in history.
-      </td>
-    </tr>
-  `;
-
-  // Financial preview tab (scrollable within max 5 items height)
-  if (financeCompletedBody) {
-    if (completed.length === 0) {
-      financeCompletedBody.innerHTML = emptyCompletedMsg;
-    } else {
-      financeCompletedBody.innerHTML = completed.map(w => createCompletedWithdrawalRowHtml(w, userMap[w.userId])).join('');
-    }
+  if (btnPaystack) {
+    btnPaystack.disabled = false;
+    btnPaystack.textContent = 'Authorize & Transfer via Paystack';
   }
+  if (btnBypass) btnBypass.disabled = false;
 
-  // Full logs subpage with search & filter
-  if (fullCompletedBody) {
-    const logsSearchInput = document.getElementById('admWithdrawalLogsSearchInputFull');
-    const logsStatusSelect = document.getElementById('admWithdrawalLogsStatusFilterFull');
-    const logsQuery = (logsSearchInput?.value || '').toLowerCase().trim();
-    const logsStatus = logsStatusSelect?.value || 'all';
-
-    let filteredCompleted = completed;
-    if (logsStatus !== 'all') {
-      filteredCompleted = filteredCompleted.filter(w => w.status === logsStatus);
-    }
-    if (logsQuery) {
-      filteredCompleted = filteredCompleted.filter(w => {
-        const userName = (w.userName || '').toLowerCase();
-        const bankName = (w.bankName || '').toLowerCase();
-        const accNum = (w.accountNumber || '').toLowerCase();
-        const amount = String(w.amountNaira || '');
-        const status = (w.status || '').toLowerCase();
-        const reason = (w.declineReason || '').toLowerCase();
-        const dateStr = new Date(w.requestedAt).toLocaleDateString().toLowerCase();
-        return userName.includes(logsQuery) || bankName.includes(logsQuery) || accNum.includes(logsQuery) || amount.includes(logsQuery) || status.includes(logsQuery) || reason.includes(logsQuery) || dateStr.includes(logsQuery);
-      });
-    }
-
-    if (fullLogsBadge) {
-      fullLogsBadge.textContent = (logsQuery || logsStatus !== 'all')
-        ? `${filteredCompleted.length} of ${completed.length} Found`
-        : `${completed.length} Records`;
-    }
-
-    if (filteredCompleted.length === 0) {
-      fullCompletedBody.innerHTML = `
-        <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-            ${(logsQuery || logsStatus !== 'all') ? 'No transaction logs match your search and filter criteria.' : 'No completed transactions in history.'}
-          </td>
-        </tr>
-      `;
-    } else {
-      fullCompletedBody.innerHTML = filteredCompleted.map(w => createCompletedWithdrawalRowHtml(w, userMap[w.userId])).join('');
-    }
+  const modal = document.getElementById('admPayoutModal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.style.display = 'flex';
   }
 }
+window.openAdminPayoutModal = openAdminPayoutModal;
+
+function closeAdminPayoutModal() {
+  const modal = document.getElementById('admPayoutModal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
+  currentPayoutWithdrawalId = null;
+}
+window.closeAdminPayoutModal = closeAdminPayoutModal;
+
+async function executePaystackPayout() {
+  if (!currentPayoutWithdrawalId) return;
+  const wdr = window.TaskEarnDB.getWithdrawals().find(w => w.id === currentPayoutWithdrawalId);
+  if (!wdr) {
+    closeAdminPayoutModal();
+    return;
+  }
+
+  const settings = window.TaskEarnDB.getSettings();
+  const secretKey = (settings.paystackSecretKey || '').trim();
+  const alertEl = document.getElementById('payoutModalAlert');
+  const btnPaystack = document.getElementById('btnConfirmPaystackPayout');
+  const btnBypass = document.getElementById('btnManualPayoutBypass');
+
+  if (!secretKey) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.innerHTML = '<strong>Missing Secret Key:</strong> Paystack Secret Key is not configured. Please enter your live secret key in Financial Rules.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (alertEl) alertEl.style.display = 'none';
+  if (btnPaystack) {
+    btnPaystack.disabled = true;
+    btnPaystack.innerHTML = `<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span> Debiting Paystack & Transferring...`;
+  }
+  if (btnBypass) btnBypass.disabled = true;
+
+  try {
+    // 1. Resolve Bank Code
+    const bankCode = await resolvePaystackBankCode(wdr.bankName, secretKey);
+    if (!bankCode) {
+      throw new Error(`Could not determine Paystack bank code for "${wdr.bankName}". Please verify the bank name.`);
+    }
+
+    const cleanAcc = String(wdr.accountNumber || '').replace(/[^0-9]/g, '');
+    if (cleanAcc.length !== 10) {
+      throw new Error(`Account number "${wdr.accountNumber}" must be exactly 10 digits.`);
+    }
+
+    // 2. Create / Get Paystack Transfer Recipient
+    const recipientRes = await fetch('https://api.paystack.co/transferrecipient', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${secretKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        type: 'nuban',
+        name: wdr.accountName || wdr.userName,
+        account_number: cleanAcc,
+        bank_code: bankCode,
+        currency: 'NGN'
+      })
+    });
+
+    const recipientData = await recipientRes.json();
+    if (!recipientData.status || !recipientData.data || !recipientData.data.recipient_code) {
+      const errMsg = recipientData.message || 'Failed to create transfer recipient on Paystack. Please check account details.';
+      throw new Error(errMsg);
+    }
+
+    const recipientCode = recipientData.data.recipient_code;
+
+    // 3. Initiate Transfer (Debits live Paystack balance)
+    const amountInKobo = Math.round(Number(wdr.amountNaira) * 100);
+    const transferRes = await fetch('https://api.paystack.co/transfer', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${secretKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        source: 'balance',
+        amount: amountInKobo,
+        recipient: recipientCode,
+        reason: `TaskEarn Payout - ${wdr.userName}`
+      })
+    });
+
+    const transferData = await transferRes.json();
+    if (!transferData.status || !transferData.data) {
+      const errMsg = transferData.message || 'Paystack balance debit/transfer failed.';
+      throw new Error(errMsg);
+    }
+
+    const transferInfo = {
+      gateway: 'Paystack Automated Debit',
+      recipientCode: recipientCode,
+      transferCode: transferData.data.transfer_code || '',
+      reference: transferData.data.reference || '',
+      status: transferData.data.status || 'success',
+      debitedAmountKobo: amountInKobo,
+      transferredAt: new Date().toISOString()
+    };
+
+    // 4. Update Database as Approved with Paystack metadata
+    window.TaskEarnDB.reviewWithdrawal(wdr.id, 'approved', '', transferInfo);
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      await window.TaskEarnDB.pushToCloud();
+    }
+
+    closeAdminPayoutModal();
+    renderWithdrawalsQueue();
+    renderOverviewStats();
+    updateAdminTabIndicators();
+
+    await window.showCustomAlert(
+      `Payout of ₦${Number(wdr.amountNaira).toLocaleString('en-NG', { minimumFractionDigits: 2 })} has been debited from your Paystack balance and transferred to ${wdr.userName} (${wdr.bankName}).\n\nTransfer Reference: ${transferInfo.reference}\nTransfer Code: ${transferInfo.transferCode}`,
+      { title: 'Paystack Transfer Initiated', type: 'success' }
+    );
+  } catch (err) {
+    console.error('Paystack Transfer Error:', err);
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.innerHTML = `
+        <div style="font-weight: 700; margin-bottom: 4px;">Paystack Debit Failed:</div>
+        <div>${escapeHtml(err.message)}</div>
+        <div style="margin-top: 8px; font-size: 0.8rem; color: #7f1d1d;">
+          The withdrawal request remains <strong>PENDING</strong> and user points were <strong>NOT</strong> debited or lost.
+          Fund your Paystack account balance or use "Approve Manually" if you already transferred outside Paystack.
+        </div>
+      `;
+      alertEl.style.display = 'block';
+    }
+  } finally {
+    if (btnPaystack) {
+      btnPaystack.disabled = false;
+      btnPaystack.textContent = 'Authorize & Transfer via Paystack';
+    }
+    if (btnBypass) btnBypass.disabled = false;
+  }
+}
+window.executePaystackPayout = executePaystackPayout;
+
+async function executeManualPayoutBypass() {
+  if (!currentPayoutWithdrawalId) return;
+  const wdr = window.TaskEarnDB.getWithdrawals().find(w => w.id === currentPayoutWithdrawalId);
+  if (!wdr) {
+    closeAdminPayoutModal();
+    return;
+  }
+
+  const confirmed = await window.showCustomConfirm(
+    `Bypass Paystack automated debit for ₦${Number(wdr.amountNaira).toLocaleString('en-NG', { minimumFractionDigits: 2 })} to ${wdr.userName}?\n\nChoose this ONLY if you have already transferred the money to the user manually via your personal bank app.`,
+    {
+      title: 'Manual Payout Approval',
+      confirmText: 'Confirm Manual Approval',
+      cancelText: 'Cancel'
+    }
+  );
+
+  if (!confirmed) return;
+
+  const transferInfo = {
+    gateway: 'Manual Transfer (Bypass)',
+    status: 'manual_settled',
+    transferredAt: new Date().toISOString()
+  };
+
+  window.TaskEarnDB.reviewWithdrawal(wdr.id, 'approved', '', transferInfo);
+  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+    await window.TaskEarnDB.pushToCloud();
+  }
+
+  closeAdminPayoutModal();
+  renderWithdrawalsQueue();
+  renderOverviewStats();
+  updateAdminTabIndicators();
+
+  await window.showCustomAlert(
+    `Withdrawal of ₦${Number(wdr.amountNaira).toLocaleString('en-NG', { minimumFractionDigits: 2 })} for ${wdr.userName} marked as Approved (Manual).`,
+    { title: 'Payout Approved', type: 'success' }
+  );
+}
+window.executeManualPayoutBypass = executeManualPayoutBypass;
 
 async function handleReviewWithdrawal(withdrawalId, status) {
   let reason = '';
@@ -1965,26 +2263,16 @@ async function handleReviewWithdrawal(withdrawalId, status) {
     );
     if (promptResult === null) return;
     reason = promptResult.trim() || 'Incorrect bank details.';
+    window.TaskEarnDB.reviewWithdrawal(withdrawalId, status, reason);
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      await window.TaskEarnDB.pushToCloud();
+    }
+    renderWithdrawalsQueue();
+    renderOverviewStats();
+    updateAdminTabIndicators();
   } else if (status === 'approved') {
-    const wdr = window.TaskEarnDB.getWithdrawals().find(w => w.id === withdrawalId);
-    const amountStr = wdr ? `₦${Number(wdr.amountNaira || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : 'this payout';
-    const recipientStr = wdr ? `${wdr.userName || 'user'} (${wdr.bankName || ''} - ${wdr.accountNumber || ''})` : '';
-    const confirmed = await window.showCustomConfirm(
-      `Are you sure you want to approve ${amountStr} for ${recipientStr}? Please ensure you have transferred the funds to their bank account.`,
-      {
-        title: 'Approve Payout',
-        confirmText: 'Yes, Approve Payout'
-      }
-    );
-    if (!confirmed) return;
+    openAdminPayoutModal(withdrawalId);
   }
-  window.TaskEarnDB.reviewWithdrawal(withdrawalId, status, reason);
-  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-    await window.TaskEarnDB.pushToCloud();
-  }
-  renderWithdrawalsQueue();
-  renderOverviewStats();
-  updateAdminTabIndicators();
 }
 
 // =================== TAB 5: MORE & SUPPORT INBOX ===================
