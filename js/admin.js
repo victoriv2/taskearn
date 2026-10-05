@@ -2130,6 +2130,151 @@ function createCompletedWithdrawalRowHtml(w, uObj) {
   `;
 }
 
+// Withdrawals Queue & Completed Logs (Both Financial Preview & Full Screen)
+function renderWithdrawalsQueue() {
+  const withdrawals = window.TaskEarnDB.getWithdrawals();
+  const allUsers = window.TaskEarnDB.getUsers();
+  const userMap = {};
+  allUsers.forEach(u => { userMap[u.id] = u; });
+
+  const pending = withdrawals.filter(w => w.status === 'pending');
+  const completed = withdrawals.filter(w => w.status !== 'pending');
+
+  const pendingBadge = document.getElementById('pendingWithdrawalsBadge');
+  if (pendingBadge) pendingBadge.textContent = `${pending.length} Pending`;
+
+  const fullPendingBadge = document.getElementById('fullPendingTotalBadge');
+  const fullLogsBadge = document.getElementById('fullLogsTotalBadge');
+
+  const statPendingCount = document.getElementById('statPendingWithdrawalsCount');
+  if (statPendingCount) statPendingCount.textContent = `${pending.length} pending request${pending.length === 1 ? '' : 's'}`;
+
+  const financePendingBody = document.getElementById('admPendingWithdrawalsBodyFinance') || document.getElementById('admPendingWithdrawalsBody');
+  const fullPendingBody = document.getElementById('admPendingWithdrawalsBodyFull');
+
+  const emptyPendingMsg = `
+    <tr>
+      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+        No pending withdrawal requests. All payouts are cleared!
+      </td>
+    </tr>
+  `;
+
+  // Financial preview tab (scrollable within max 5 items height)
+  if (financePendingBody) {
+    if (pending.length === 0) {
+      financePendingBody.innerHTML = emptyPendingMsg;
+    } else {
+      financePendingBody.innerHTML = pending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+    }
+  }
+
+  // Full pending subpage with search
+  if (fullPendingBody) {
+    const pendingSearchInput = document.getElementById('admPendingWithdrawalsSearchInputFull');
+    const pendingQuery = (pendingSearchInput?.value || '').toLowerCase().trim();
+    let filteredPending = pending;
+
+    if (pendingQuery) {
+      filteredPending = pending.filter(w => {
+        const u = userMap[w.userId];
+        const userName = (w.userName || (u ? `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}` : '')).toLowerCase();
+        const userId = (w.userId || '').toLowerCase();
+        const bankName = (w.bankName || '').toLowerCase();
+        const accNum = (w.accountNumber || '').toLowerCase();
+        const accName = (w.accountName || '').toLowerCase();
+        const amount = String(w.amountNaira || '');
+        const points = String(w.points || '');
+        return userName.includes(pendingQuery) || userId.includes(pendingQuery) || bankName.includes(pendingQuery) || accNum.includes(pendingQuery) || accName.includes(pendingQuery) || amount.includes(pendingQuery) || points.includes(pendingQuery);
+      });
+    }
+
+    if (fullPendingBadge) {
+      fullPendingBadge.textContent = pendingQuery 
+        ? `${filteredPending.length} of ${pending.length} Found`
+        : `${pending.length} Pending`;
+    }
+
+    if (filteredPending.length === 0) {
+      fullPendingBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            ${pendingQuery ? 'No pending withdrawal requests match your search.' : 'No pending withdrawal requests. All payouts are cleared!'}
+          </td>
+        </tr>
+      `;
+    } else {
+      fullPendingBody.innerHTML = filteredPending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+    }
+  }
+
+  const financeCompletedBody = document.getElementById('admCompletedWithdrawalsBodyFinance') || document.getElementById('admCompletedWithdrawalsBody');
+  const fullCompletedBody = document.getElementById('admCompletedWithdrawalsBodyFull');
+
+  const emptyCompletedMsg = `
+    <tr>
+      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+        No completed transactions in history.
+      </td>
+    </tr>
+  `;
+
+  // Financial preview tab (scrollable within max 5 items height)
+  if (financeCompletedBody) {
+    if (completed.length === 0) {
+      financeCompletedBody.innerHTML = emptyCompletedMsg;
+    } else {
+      financeCompletedBody.innerHTML = completed.map(w => createCompletedWithdrawalRowHtml(w, userMap[w.userId])).join('');
+    }
+  }
+
+  // Full logs subpage with search & filter
+  if (fullCompletedBody) {
+    const logsSearchInput = document.getElementById('admWithdrawalLogsSearchInputFull');
+    const logsStatusSelect = document.getElementById('admWithdrawalLogsStatusFilterFull');
+    const logsQuery = (logsSearchInput?.value || '').toLowerCase().trim();
+    const logsStatus = logsStatusSelect?.value || 'all';
+
+    let filteredCompleted = completed;
+    if (logsStatus !== 'all') {
+      filteredCompleted = filteredCompleted.filter(w => w.status === logsStatus);
+    }
+    if (logsQuery) {
+      filteredCompleted = filteredCompleted.filter(w => {
+        const u = userMap[w.userId];
+        const userName = (w.userName || (u ? `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}` : '')).toLowerCase();
+        const bankName = (w.bankName || '').toLowerCase();
+        const accNum = (w.accountNumber || '').toLowerCase();
+        const accName = (w.accountName || '').toLowerCase();
+        const amount = String(w.amountNaira || '');
+        const status = (w.status || '').toLowerCase();
+        const reason = (w.declineReason || '').toLowerCase();
+        const dateStr = new Date(w.requestedAt).toLocaleDateString().toLowerCase();
+        return userName.includes(logsQuery) || bankName.includes(logsQuery) || accNum.includes(logsQuery) || accName.includes(logsQuery) || amount.includes(logsQuery) || status.includes(logsQuery) || reason.includes(logsQuery) || dateStr.includes(logsQuery);
+      });
+    }
+
+    if (fullLogsBadge) {
+      fullLogsBadge.textContent = (logsQuery || logsStatus !== 'all')
+        ? `${filteredCompleted.length} of ${completed.length} Found`
+        : `${completed.length} Records`;
+    }
+
+    if (filteredCompleted.length === 0) {
+      fullCompletedBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            ${(logsQuery || logsStatus !== 'all') ? 'No transaction logs match your search and filter criteria.' : 'No completed transactions in history.'}
+          </td>
+        </tr>
+      `;
+    } else {
+      fullCompletedBody.innerHTML = filteredCompleted.map(w => createCompletedWithdrawalRowHtml(w, userMap[w.userId])).join('');
+    }
+  }
+}
+window.renderWithdrawalsQueue = renderWithdrawalsQueue;
+
 // Modal State & Payout Processing Handlers
 let currentPayoutWithdrawalId = null;
 
