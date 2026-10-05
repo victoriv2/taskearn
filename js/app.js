@@ -7,8 +7,8 @@
 let activeUser = null;
 let currentActiveTask = null;
 let taskDwellInterval = null;
-let taskDwellTotalSeconds = 15;
-let taskDwellSecondsLeft = 15;
+let taskDwellTotalSeconds = 20;
+let taskDwellSecondsLeft = 20;
 let isTabActive = true;
 let tempChatImageData = null;
 
@@ -779,7 +779,7 @@ function performTaskAction() {
   headline.textContent = 'Task Link Opened';
   subtext.textContent = 'Performing action... Verifying completion in background.';
 
-  taskDwellTotalSeconds = Number(currentActiveTask.timerSeconds) || 15;
+  taskDwellTotalSeconds = Math.max(20, Number(currentActiveTask.timerSeconds) || 20);
   taskDwellSecondsLeft = taskDwellTotalSeconds;
 
   taskDwellInterval = setInterval(() => {

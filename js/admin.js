@@ -798,7 +798,7 @@ function openEditTaskModal(taskId) {
   document.getElementById('editTaskTitle').value = task.title;
   document.getElementById('editTaskPoints').value = task.points;
   document.getElementById('editTaskUrl').value = task.targetUrl;
-  document.getElementById('editTaskTimerSeconds').value = task.timerSeconds || 15;
+  document.getElementById('editTaskTimerSeconds').value = task.timerSeconds || 20;
   document.getElementById('editTaskStatus').value = task.status;
   if (window.TaskEarnModalSelect) {
     window.TaskEarnModalSelect.sync('editTaskStatus');
@@ -875,7 +875,7 @@ async function handleCreateTaskSubmit(event) {
   const category = document.getElementById('taskCategory')?.value || 'Website';
   const points = Number(document.getElementById('taskPoints')?.value);
   const targetUrl = (document.getElementById('taskTargetUrl')?.value || '').trim();
-  const timerSeconds = Number(document.getElementById('taskTimerSeconds')?.value) || 15;
+  const timerSeconds = Number(document.getElementById('taskTimerSeconds')?.value) || 20;
   const maxCompletions = Number(document.getElementById('taskMaxCompletions')?.value) || 1000;
   const description = (document.getElementById('taskDescription')?.value || '').trim();
   const alertEl = document.getElementById('createTaskAlert');
