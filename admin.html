@@ -245,9 +245,9 @@
               <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                   <div>
-                    <h3 class="card-title" style="margin-bottom: 0;">Completed Tasks (Recent 5)</h3>
+                    <h3 class="card-title" style="margin-bottom: 0;">Completed Tasks (Live Feed)</h3>
                     <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
-                      Showing 5 latest completions. Open full live feed in More to view all.
+                      Live feed (max 5 visible before scroll). Open full live feed in More to view all.
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px;">
@@ -260,7 +260,7 @@
               </div>
             </div>
 
-            <div class="table-responsive">
+            <div class="table-responsive table-responsive-scroll-5">
               <table>
                 <thead>
                   <tr>
@@ -272,7 +272,7 @@
                   </tr>
                 </thead>
                 <tbody id="admRecentActivityTableBodyOverview">
-                  <!-- Dynamically rendered top 5 -->
+                  <!-- Dynamically rendered -->
                 </tbody>
               </table>
             </div>
@@ -283,9 +283,9 @@
             <div class="card-header">
               <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
                 <div>
-                  <h3 class="card-title" style="margin-bottom: 0;">User Directory (Recent 5)</h3>
+                  <h3 class="card-title" style="margin-bottom: 0;">User Directory</h3>
                   <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
-                    Showing 5 newest members. Open full directory to search, filter & manage.
+                    Registered users (max 5 visible before scroll). Open full directory in More to search & manage.
                   </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -297,7 +297,7 @@
               </div>
             </div>
 
-            <div class="table-responsive">
+            <div class="table-responsive table-responsive-scroll-5">
               <table>
                 <thead>
                   <tr>
@@ -310,7 +310,7 @@
                   </tr>
                 </thead>
                 <tbody id="admUsersTableBodyOverview">
-                  <!-- Dynamically rendered top 5 -->
+                  <!-- Dynamically rendered -->
                 </tbody>
               </table>
             </div>
@@ -606,9 +606,9 @@
               <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                   <div>
-                    <h3 class="card-title" style="margin-bottom: 0;">Pay-In Records (Recent 5)</h3>
+                    <h3 class="card-title" style="margin-bottom: 0;">Pay-In Records (Account Verification Fees)</h3>
                     <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
-                      Showing 5 latest verification payments. Open full screen for complete log & search.
+                      Verification payments (max 5 visible before scroll). Open full screen for complete log & search.
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px;">
@@ -621,7 +621,7 @@
               </div>
             </div>
 
-            <div class="table-responsive">
+            <div class="table-responsive table-responsive-scroll-5">
               <table>
                 <thead>
                   <tr>
@@ -634,7 +634,7 @@
                   </tr>
                 </thead>
                 <tbody id="admPayInTableBodyFinance">
-                  <!-- Dynamically rendered top 5 -->
+                  <!-- Dynamically rendered -->
                 </tbody>
               </table>
             </div>
@@ -646,9 +646,9 @@
               <div style="flex: 1; min-width: 0;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                   <div>
-                    <h3 class="card-title" style="margin-bottom: 0;">Pending Withdrawal Requests (Recent 5)</h3>
+                    <h3 class="card-title" style="margin-bottom: 0;">Pending Withdrawal Requests</h3>
                     <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
-                      Showing 5 latest pending requests. Open full screen to manage all requests.
+                      Pending requests (max 5 visible before scroll). Open full screen to manage all requests.
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px;">
@@ -661,7 +661,7 @@
               </div>
             </div>
 
-            <div class="table-responsive">
+            <div class="table-responsive table-responsive-scroll-5">
               <table>
                 <thead>
                   <tr>
@@ -674,7 +674,7 @@
                   </tr>
                 </thead>
                 <tbody id="admPendingWithdrawalsBodyFinance">
-                  <!-- Dynamically rendered top 5 -->
+                  <!-- Dynamically rendered -->
                 </tbody>
               </table>
             </div>
@@ -685,9 +685,9 @@
             <div class="card-header">
               <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
                 <div>
-                  <h3 class="card-title" style="margin-bottom: 0;">Withdrawal Transaction Logs (Recent 5)</h3>
+                  <h3 class="card-title" style="margin-bottom: 0;">Withdrawal Transaction Logs (History)</h3>
                   <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
-                    Showing 5 latest processed transactions. Open full screen for full archive.
+                    Processed transactions (max 5 visible before scroll). Open full screen for full archive.
                   </div>
                 </div>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="openMorePage('withdrawal-logs')">
@@ -695,7 +695,7 @@
                 </button>
               </div>
             </div>
-            <div class="table-responsive">
+            <div class="table-responsive table-responsive-scroll-5">
               <table>
                 <thead>
                   <tr>
@@ -708,7 +708,7 @@
                   </tr>
                 </thead>
                 <tbody id="admCompletedWithdrawalsBodyFinance">
-                  <!-- Dynamically rendered top 5 -->
+                  <!-- Dynamically rendered -->
                 </tbody>
               </table>
             </div>

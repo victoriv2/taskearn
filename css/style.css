@@ -790,6 +790,26 @@ input:focus, select:focus, textarea:focus {
   background-color: var(--bg-surface);
 }
 
+/* Scrollable table container constrained to max 5 items before scroll */
+.table-responsive-scroll-5 {
+  width: 100%;
+  max-height: 310px;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+}
+
+.table-responsive-scroll-5 thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: var(--bg-subtle);
+  box-shadow: 0 1px 0 var(--border-color);
+}
+
 table {
   width: 100%;
   min-width: 620px;

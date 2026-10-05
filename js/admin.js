@@ -425,9 +425,9 @@ function renderRecentActivity() {
     return;
   }
 
-  // Overview gets latest 5 items
+  // Overview gets completions (scrollable within max 5 items height)
   if (overviewBody) {
-    overviewBody.innerHTML = completions.slice(0, 5).map(c => createActivityRowHtml(c, userMap[c.userId])).join('');
+    overviewBody.innerHTML = completions.map(c => createActivityRowHtml(c, userMap[c.userId])).join('');
   }
 
   // Full subpage gets searchable filtered items
@@ -556,10 +556,20 @@ function renderAdminUsers() {
   const overviewBody = document.getElementById('admUsersTableBodyOverview') || document.getElementById('admUsersTableBody');
   const fullBody = document.getElementById('admUsersTableBodyFull');
 
-  // Overview gets 5 newest users
+  // Overview gets users (scrollable within max 5 items height)
   if (overviewBody) {
-    const newest5 = [...users].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
-    overviewBody.innerHTML = newest5.map(u => createUserRowHtml(u)).join('');
+    if (users.length === 0) {
+      overviewBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No users registered yet.
+          </td>
+        </tr>
+      `;
+    } else {
+      const sortedUsers = [...users].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      overviewBody.innerHTML = sortedUsers.map(u => createUserRowHtml(u)).join('');
+    }
   }
 
   // Full subpage gets all filtered users
@@ -1397,7 +1407,7 @@ function renderPayInRecords() {
   }
 
   if (financeBody) {
-    financeBody.innerHTML = filtered.slice(0, 5).map(p => createPayInRowHtml(p, userMap[p.userId])).join('');
+    financeBody.innerHTML = filtered.map(p => createPayInRowHtml(p, userMap[p.userId])).join('');
   }
   if (fullBody) {
     fullBody.innerHTML = filtered.map(p => createPayInRowHtml(p, userMap[p.userId])).join('');
@@ -1485,12 +1495,12 @@ function renderWithdrawalsQueue() {
     </tr>
   `;
 
-  // Financial preview tab (top 5)
+  // Financial preview tab (scrollable within max 5 items height)
   if (financePendingBody) {
     if (pending.length === 0) {
       financePendingBody.innerHTML = emptyPendingMsg;
     } else {
-      financePendingBody.innerHTML = pending.slice(0, 5).map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+      financePendingBody.innerHTML = pending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
     }
   }
 
@@ -1544,12 +1554,12 @@ function renderWithdrawalsQueue() {
     </tr>
   `;
 
-  // Financial preview tab (top 5)
+  // Financial preview tab (scrollable within max 5 items height)
   if (financeCompletedBody) {
     if (completed.length === 0) {
       financeCompletedBody.innerHTML = emptyCompletedMsg;
     } else {
-      financeCompletedBody.innerHTML = completed.slice(0, 5).map(w => createCompletedWithdrawalRowHtml(w)).join('');
+      financeCompletedBody.innerHTML = completed.map(w => createCompletedWithdrawalRowHtml(w)).join('');
     }
   }
 
