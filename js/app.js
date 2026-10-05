@@ -35,18 +35,18 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           if (activeTab.id === 'tab-withdrawals') {
             const wdrForm = document.getElementById('withdrawalForm');
-            const bankForm = document.getElementById('saveBankForm');
+            const bankForm = document.getElementById('bankDetailsForm');
             const isEditing = (wdrForm && wdrForm.contains(activeEl)) || (bankForm && bankForm.contains(activeEl));
             if (!isEditing) renderWithdrawalsTab();
           }
-          if (activeTab.id === 'tab-support') {
+          if (activeTab.id === 'tab-messages') {
             renderChatMessages();
           }
-          if (activeTab.id === 'tab-profile') {
-            const profForm = document.getElementById('editProfileForm');
-            const passForm = document.getElementById('changePasswordForm');
+          if (activeTab.id === 'tab-more') {
+            const profForm = document.getElementById('profileForm');
+            const passForm = document.getElementById('passwordForm');
             const isEditing = (profForm && profForm.contains(activeEl)) || (passForm && passForm.contains(activeEl));
-            if (!isEditing) renderProfileTab();
+            if (!isEditing) loadProfileDetails();
           }
         }
       }
@@ -363,13 +363,13 @@ async function initiatePaystackVerification() {
           }
         ]
       },
-      callback: async function(response) {
+      callback: function(response) {
         if (payBtn) {
           payBtn.disabled = false;
           payBtn.textContent = `Pay ₦${fee.toLocaleString()} via Paystack`;
         }
         const ref = response.reference || response.trxref || ('TE_VER_' + Date.now());
-        await redirectToHome(ref);
+        redirectToHome(ref);
       },
       onClose: function() {
         if (payBtn) {
