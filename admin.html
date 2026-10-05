@@ -1164,33 +1164,37 @@
 
           <!-- SUBPAGE 7: Cloud Database & Maintenance -->
           <div id="admMorePage-cloud-sync" class="more-subpage card" style="display: none;">
-            <div style="margin-bottom: 16px;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
-                &larr; Back to More Menu
-              </button>
+            <div class="card-header" style="margin-bottom: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeMorePage()">
+                    &larr; Back to More Menu
+                  </button>
+                  <h3 class="card-title" style="margin-bottom: 0;">Cloud Database & Maintenance</h3>
+                </div>
+                <span class="badge badge-approved" id="cloudSyncStatusBadge">JSONBin Connected</span>
+              </div>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-              <h3 class="card-title" style="margin-bottom: 0;">Cloud Database & System Maintenance</h3>
-              <span class="badge badge-approved" id="cloudSyncStatusBadge">JSONBin Connected</span>
-            </div>
-            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px;">
-              TaskEarn is connected directly to your cloud storage on <strong>JSONBin.io</strong>. All users, tasks, submissions, payments, and withdrawals sync automatically in real-time.
-            </p>
-            <div style="background: var(--bg-surface-alt, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 6px; padding: 12px 14px; font-size: 0.85rem; margin-bottom: 16px;">
-              <div><strong>Provider:</strong> JSONBin.io (API v3)</div>
-              <div style="margin-top: 4px;"><strong>Bin ID:</strong> <code style="font-family: monospace; color: var(--primary-blue-dark);">6ac0c39bac6210605a0ee84a</code></div>
-              <div style="margin-top: 4px;"><strong>Auth:</strong> X-Master-Key Authenticated</div>
-            </div>
-            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="manualCloudSync()">
-                Sync Cloud Now
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="exportDatabaseJson()">
-                Export JSON Backup
-              </button>
-              <button type="button" class="btn btn-danger btn-sm" onclick="resetDatabaseDemoData()">
-                Wipe Database Clean
-              </button>
+            <div class="more-subpage-scroll-body" style="padding: 18px 20px; overflow-y: auto; flex: 1;">
+              <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px;">
+                TaskEarn is connected directly to your cloud storage on <strong>JSONBin.io</strong>. All users, tasks, submissions, payments, and withdrawals sync automatically in real-time.
+              </p>
+              <div style="background: var(--bg-surface-alt, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 6px; padding: 12px 14px; font-size: 0.85rem; margin-bottom: 16px;">
+                <div><strong>Provider:</strong> JSONBin.io (API v3)</div>
+                <div style="margin-top: 4px;"><strong>Bin ID:</strong> <code style="font-family: monospace; color: var(--primary-blue-dark);">6ac0c39bac6210605a0ee84a</code></div>
+                <div style="margin-top: 4px;"><strong>Auth:</strong> X-Master-Key Authenticated</div>
+              </div>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="manualCloudSync()">
+                  Sync Cloud Now
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="exportDatabaseJson()">
+                  Export JSON Backup
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="resetDatabaseDemoData()">
+                  Wipe Database Clean
+                </button>
+              </div>
             </div>
           </div>
 
