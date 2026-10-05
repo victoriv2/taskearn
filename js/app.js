@@ -6,9 +6,7 @@
 
 let activeUser = null;
 let currentActiveTask = null;
-let taskDwellInterval = null;
-let taskDwellTotalSeconds = 20;
-let taskDwellSecondsLeft = 20;
+let taskStartTime = null;
 let isTabActive = true;
 let tempChatImageData = null;
 
@@ -96,6 +94,7 @@ function injectSvgIcons() {
   setIcon('iconLogout', window.ICONS.logout);
   setIcon('iconCloseModal', window.ICONS.close);
   setIcon('iconPerformTask', window.ICONS.externalLink);
+  setIcon('iconConfirmTask', window.ICONS.check);
   setIcon('iconVerifyLock', window.ICONS.lock);
 
   if (window.initPasswordToggleIcons) {
@@ -741,91 +740,143 @@ function openTaskModal(taskId) {
   alertBox.style.display = 'none';
 
   const startBtn = document.getElementById('startTaskBtn');
+  startBtn.style.display = 'block';
   startBtn.disabled = false;
-  startBtn.textContent = 'Perform Task (Opens Link)';
+  startBtn.className = 'btn btn-primary btn-block';
+  startBtn.innerHTML = `<span id="iconPerformTask">${window.ICONS?.externalLink || ''}</span> Perform Task (Opens Link)`;
 
-  document.getElementById('taskVerificationStatusBox').style.display = 'none';
-  document.getElementById('taskDwellProgressBar').style.width = '0%';
+  const confirmBtn = document.getElementById('confirmTaskBtn');
+  if (confirmBtn) {
+    confirmBtn.style.display = 'none';
+    confirmBtn.disabled = false;
+    confirmBtn.className = 'btn btn-primary btn-block';
+    confirmBtn.innerHTML = `<span id="iconConfirmTask">${window.ICONS?.check || ''}</span> I Have Performed Task`;
+  }
+
+  const statusBox = document.getElementById('taskVerificationStatusBox');
+  if (statusBox) statusBox.style.display = 'none';
 
   document.getElementById('taskModal').classList.add('open');
 }
 
 function closeTaskModal() {
-  if (taskDwellInterval) {
-    clearInterval(taskDwellInterval);
-    taskDwellInterval = null;
-  }
   document.getElementById('taskModal').classList.remove('open');
   currentActiveTask = null;
+  taskStartTime = null;
 }
 
-// User clicks "Perform Task" -> opens link -> invisible timer verifies in background
+// User clicks "Perform Task" -> opens link in new tab -> records start timestamp
 function performTaskAction() {
-  if (!currentActiveTask || taskDwellInterval) return;
+  if (!currentActiveTask) return;
 
   // Open the action link in a new tab
   window.open(currentActiveTask.targetUrl, '_blank');
 
+  // Record start timestamp
+  taskStartTime = Date.now();
+
   const startBtn = document.getElementById('startTaskBtn');
-  startBtn.disabled = true;
-  startBtn.textContent = 'Action Opened • Verifying in Background...';
+  startBtn.className = 'btn btn-secondary btn-block';
+  startBtn.innerHTML = `<span id="iconPerformTask">${window.ICONS?.externalLink || ''}</span> Re-open Task Link`;
+
+  const confirmBtn = document.getElementById('confirmTaskBtn');
+  if (confirmBtn) {
+    confirmBtn.style.display = 'block';
+    confirmBtn.disabled = false;
+    confirmBtn.className = 'btn btn-primary btn-block';
+    confirmBtn.innerHTML = `<span id="iconConfirmTask">${window.ICONS?.check || ''}</span> I Have Performed Task`;
+  }
 
   const statusBox = document.getElementById('taskVerificationStatusBox');
   const headline = document.getElementById('taskDwellHeadline');
   const subtext = document.getElementById('taskDwellSubtext');
-  const progressBar = document.getElementById('taskDwellProgressBar');
 
-  statusBox.style.display = 'block';
-  headline.textContent = 'Task Link Opened';
-  subtext.textContent = 'Performing action... Verifying completion in background.';
-
-  taskDwellTotalSeconds = Math.max(20, Number(currentActiveTask.timerSeconds) || 20);
-  taskDwellSecondsLeft = taskDwellTotalSeconds;
-
-  taskDwellInterval = setInterval(() => {
-    // Check tab active status
-    if (!isTabActive) {
-      subtext.textContent = 'Verification paused — return to this tab to finish.';
-      return;
+  if (statusBox) {
+    statusBox.style.display = 'block';
+    if (headline) headline.textContent = 'Task Link Opened';
+    const reqSec = Math.max(20, Number(currentActiveTask.timerSeconds) || 20);
+    if (subtext) {
+      subtext.innerHTML = `Perform the task on the opened page. You must spend at least <strong>${reqSec} seconds</strong> there. When done, click <strong>"I Have Performed Task"</strong> above.`;
     }
+  }
 
-    taskDwellSecondsLeft -= 1;
-    const progressPercent = Math.min(100, Math.round(((taskDwellTotalSeconds - taskDwellSecondsLeft) / taskDwellTotalSeconds) * 100));
-    progressBar.style.width = `${progressPercent}%`;
-
-    if (taskDwellSecondsLeft <= 0) {
-      clearInterval(taskDwellInterval);
-      taskDwellInterval = null;
-
-      try {
-        window.TaskEarnDB.completeTask({
-          taskId: currentActiveTask.id,
-          userId: activeUser.id
-        });
-        if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-          window.TaskEarnDB.pushToCloud().catch(() => {});
-        }
-
-        headline.textContent = 'Verified!';
-        subtext.textContent = `+${currentActiveTask.points} Points credited to your account.`;
-        progressBar.style.width = '100%';
-
-        showTaskModalAlert(`Task verified! +${currentActiveTask.points} Points credited.`, 'success');
-        updateWalletHeader();
-
-        setTimeout(() => {
-          closeTaskModal();
-          renderUserTasks();
-        }, 1200);
-
-      } catch (err) {
-        showTaskModalAlert(err.message, 'error');
-        startBtn.disabled = false;
-        startBtn.textContent = 'Retry Task';
-      }
-    }
-  }, 1000);
+  const alertBox = document.getElementById('modalTaskAlert');
+  if (alertBox) alertBox.style.display = 'none';
 }
+
+// User clicks "I Have Performed Task" -> verify they spent at least 20 seconds
+async function verifyUserTaskCompletion() {
+  if (!currentActiveTask || !activeUser) return;
+
+  const alertBox = document.getElementById('modalTaskAlert');
+  const confirmBtn = document.getElementById('confirmTaskBtn');
+  const reqSec = Math.max(20, Number(currentActiveTask.timerSeconds) || 20);
+
+  if (!taskStartTime) {
+    if (alertBox) {
+      alertBox.className = 'alert alert-error';
+      alertBox.textContent = 'Please click "Perform Task (Opens Link)" first before verifying.';
+      alertBox.style.display = 'block';
+    }
+    return;
+  }
+
+  const elapsedSeconds = Math.floor((Date.now() - taskStartTime) / 1000);
+
+  // If performed under required dwell time (e.g. under 20s), reject!
+  if (elapsedSeconds < reqSec) {
+    const remaining = reqSec - elapsedSeconds;
+    if (alertBox) {
+      alertBox.className = 'alert alert-error';
+      alertBox.innerHTML = `Task Not Completed: You only spent <strong>${elapsedSeconds} seconds</strong>. You must perform the task for at least <strong>${reqSec} seconds</strong> (<strong>${remaining}s remaining</strong>). Please go back and complete the task.`;
+      alertBox.style.display = 'block';
+    }
+    return;
+  }
+
+  // Spent 20 seconds or more: success!
+  try {
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Verifying Completion...';
+    }
+
+    window.TaskEarnDB.completeTask({
+      taskId: currentActiveTask.id,
+      userId: activeUser.id
+    });
+
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      await window.TaskEarnDB.pushToCloud();
+    }
+
+    if (alertBox) {
+      alertBox.className = 'alert alert-success';
+      alertBox.textContent = `Task verified successfully! +${currentActiveTask.points} Points credited to your account.`;
+      alertBox.style.display = 'block';
+    }
+
+    updateWalletHeader();
+
+    setTimeout(() => {
+      closeTaskModal();
+      renderUserTasks();
+    }, 1200);
+
+  } catch (err) {
+    if (alertBox) {
+      alertBox.className = 'alert alert-error';
+      alertBox.textContent = err.message;
+      alertBox.style.display = 'block';
+    }
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = `<span id="iconConfirmTask">${window.ICONS?.check || ''}</span> I Have Performed Task`;
+    }
+  }
+}
+
+window.verifyUserTaskCompletion = verifyUserTaskCompletion;
 
 function showTaskModalAlert(message, type = 'error') {
   const alertBox = document.getElementById('modalTaskAlert');

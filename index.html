@@ -821,23 +821,23 @@
 
       <div id="modalTaskAlert" style="display: none;"></div>
 
-      <!-- Action & Automated Verification UI -->
-      <div id="taskActionSection">
+      <!-- Action & Manual Confirmation Verification UI -->
+      <div id="taskActionSection" style="display: flex; flex-direction: column; gap: 10px;">
         <button type="button" id="startTaskBtn" class="btn btn-primary btn-block" style="padding: 13px 20px; font-size: 1rem;" onclick="performTaskAction()">
           <span id="iconPerformTask"></span> Perform Task (Opens Link)
         </button>
+        <button type="button" id="confirmTaskBtn" class="btn btn-primary btn-block" style="display: none; padding: 13px 20px; font-size: 1rem;" onclick="verifyUserTaskCompletion()">
+          <span id="iconConfirmTask"></span> I Have Performed Task
+        </button>
       </div>
 
-      <!-- Background Verification Progress State -->
-      <div id="taskVerificationStatusBox" style="display: none; margin-top: 14px; padding: 16px; background-color: var(--bg-subtle); border-radius: var(--radius-md); text-align: center;">
-        <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary-blue);" id="taskDwellHeadline">
-          Task Opened in New Tab
+      <!-- Verification Info State -->
+      <div id="taskVerificationStatusBox" style="display: none; margin-top: 14px; padding: 14px 16px; background-color: var(--bg-subtle); border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-color);">
+        <div style="font-size: 0.9rem; font-weight: 700; color: var(--primary-blue);" id="taskDwellHeadline">
+          Task Link Opened
         </div>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;" id="taskDwellSubtext">
-          Verifying completion in background...
-        </div>
-        <div style="margin-top: 10px; width: 100%; height: 6px; background-color: var(--border-color); border-radius: var(--radius-full); overflow: hidden;">
-          <div id="taskDwellProgressBar" style="width: 0%; height: 100%; background-color: var(--primary-green); transition: width 0.3s ease;"></div>
+        <div style="font-size: 0.83rem; color: var(--text-muted); margin-top: 5px; line-height: 1.45;" id="taskDwellSubtext">
+          Perform the required task on the opened page. You must spend at least 20 seconds there. When done, click <strong>"I Have Performed Task"</strong> above.
         </div>
       </div>
 
