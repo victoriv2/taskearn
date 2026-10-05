@@ -39,6 +39,10 @@ function injectAdminSvgIcons() {
   setIcon('admTaskSearchIcon', window.ICONS.search);
   setIcon('admPayInSearchIcon', window.ICONS.search);
   setIcon('admPayInSearchIconFull', window.ICONS.search);
+  setIcon('admTasksFeedSearchIconFull', window.ICONS.search);
+  setIcon('admPendingWithdrawalsSearchIconFull', window.ICONS.search);
+  setIcon('admWithdrawalLogsSearchIconFull', window.ICONS.search);
+  setIcon('admInboxSearchIcon', window.ICONS.search);
   setIcon('admBtnIconPlus', window.ICONS.plus);
   setIcon('admIconAttach', window.ICONS.image);
   setIcon('admIconSend', window.ICONS.send);
@@ -370,7 +374,6 @@ function renderRecentActivity() {
   if (totalCompletionsBadge) totalCompletionsBadge.textContent = `${completions.length} Completed`;
 
   const fullTasksTotalBadge = document.getElementById('fullTasksTotalBadge');
-  if (fullTasksTotalBadge) fullTasksTotalBadge.textContent = `${completions.length} Completed`;
 
   const overviewBody = document.getElementById('admRecentActivityTableBodyOverview') || document.getElementById('admRecentActivityTableBody');
   const fullBody = document.getElementById('admRecentActivityTableBodyFull');
@@ -386,6 +389,7 @@ function renderRecentActivity() {
   if (completions.length === 0) {
     if (overviewBody) overviewBody.innerHTML = emptyMsg;
     if (fullBody) fullBody.innerHTML = emptyMsg;
+    if (fullTasksTotalBadge) fullTasksTotalBadge.textContent = '0 Completed';
     return;
   }
 
@@ -394,9 +398,40 @@ function renderRecentActivity() {
     overviewBody.innerHTML = completions.slice(0, 5).map(c => createActivityRowHtml(c, userMap[c.userId])).join('');
   }
 
-  // Full subpage gets all items
+  // Full subpage gets searchable filtered items
   if (fullBody) {
-    fullBody.innerHTML = completions.map(c => createActivityRowHtml(c, userMap[c.userId])).join('');
+    const searchInput = document.getElementById('admRecentActivitySearchInputFull');
+    const query = (searchInput?.value || '').toLowerCase().trim();
+    let filteredCompletions = completions;
+
+    if (query) {
+      filteredCompletions = completions.filter(c => {
+        const u = userMap[c.userId];
+        const userName = u ? `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}`.toLowerCase() : (c.userId || '').toLowerCase();
+        const taskTitle = (c.taskTitle || '').toLowerCase();
+        const points = String(c.points || '');
+        const dateStr = new Date(c.completedAt || c.submittedAt || Date.now()).toLocaleDateString().toLowerCase();
+        return userName.includes(query) || taskTitle.includes(query) || points.includes(query) || dateStr.includes(query) || 'auto click & dwell'.includes(query);
+      });
+    }
+
+    if (fullTasksTotalBadge) {
+      fullTasksTotalBadge.textContent = query 
+        ? `${filteredCompletions.length} of ${completions.length} Found`
+        : `${completions.length} Completed`;
+    }
+
+    if (filteredCompletions.length === 0) {
+      fullBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No completed tasks match your search query.
+          </td>
+        </tr>
+      `;
+    } else {
+      fullBody.innerHTML = filteredCompletions.map(c => createActivityRowHtml(c, userMap[c.userId])).join('');
+    }
   }
 }
 
@@ -1405,10 +1440,7 @@ function renderWithdrawalsQueue() {
   if (pendingBadge) pendingBadge.textContent = `${pending.length} Pending`;
 
   const fullPendingBadge = document.getElementById('fullPendingTotalBadge');
-  if (fullPendingBadge) fullPendingBadge.textContent = `${pending.length} Pending`;
-
   const fullLogsBadge = document.getElementById('fullLogsTotalBadge');
-  if (fullLogsBadge) fullLogsBadge.textContent = `${completed.length} Records`;
 
   const financePendingBody = document.getElementById('admPendingWithdrawalsBodyFinance') || document.getElementById('admPendingWithdrawalsBody');
   const fullPendingBody = document.getElementById('admPendingWithdrawalsBodyFull');
@@ -1421,15 +1453,51 @@ function renderWithdrawalsQueue() {
     </tr>
   `;
 
-  if (pending.length === 0) {
-    if (financePendingBody) financePendingBody.innerHTML = emptyPendingMsg;
-    if (fullPendingBody) fullPendingBody.innerHTML = emptyPendingMsg;
-  } else {
-    if (financePendingBody) {
+  // Financial preview tab (top 5)
+  if (financePendingBody) {
+    if (pending.length === 0) {
+      financePendingBody.innerHTML = emptyPendingMsg;
+    } else {
       financePendingBody.innerHTML = pending.slice(0, 5).map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
     }
-    if (fullPendingBody) {
-      fullPendingBody.innerHTML = pending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+  }
+
+  // Full pending subpage with search
+  if (fullPendingBody) {
+    const pendingSearchInput = document.getElementById('admPendingWithdrawalsSearchInputFull');
+    const pendingQuery = (pendingSearchInput?.value || '').toLowerCase().trim();
+    let filteredPending = pending;
+
+    if (pendingQuery) {
+      filteredPending = pending.filter(w => {
+        const u = userMap[w.userId];
+        const userName = (w.userName || (u ? `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}` : '')).toLowerCase();
+        const userId = (w.userId || '').toLowerCase();
+        const bankName = (w.bankName || '').toLowerCase();
+        const accNum = (w.accountNumber || '').toLowerCase();
+        const accName = (w.accountName || '').toLowerCase();
+        const amount = String(w.amountNaira || '');
+        const points = String(w.points || '');
+        return userName.includes(pendingQuery) || userId.includes(pendingQuery) || bankName.includes(pendingQuery) || accNum.includes(pendingQuery) || accName.includes(pendingQuery) || amount.includes(pendingQuery) || points.includes(pendingQuery);
+      });
+    }
+
+    if (fullPendingBadge) {
+      fullPendingBadge.textContent = pendingQuery 
+        ? `${filteredPending.length} of ${pending.length} Found`
+        : `${pending.length} Pending`;
+    }
+
+    if (filteredPending.length === 0) {
+      fullPendingBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            ${pendingQuery ? 'No pending withdrawal requests match your search.' : 'No pending withdrawal requests. All payouts are cleared!'}
+          </td>
+        </tr>
+      `;
+    } else {
+      fullPendingBody.innerHTML = filteredPending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
     }
   }
 
@@ -1444,15 +1512,55 @@ function renderWithdrawalsQueue() {
     </tr>
   `;
 
-  if (completed.length === 0) {
-    if (financeCompletedBody) financeCompletedBody.innerHTML = emptyCompletedMsg;
-    if (fullCompletedBody) fullCompletedBody.innerHTML = emptyCompletedMsg;
-  } else {
-    if (financeCompletedBody) {
+  // Financial preview tab (top 5)
+  if (financeCompletedBody) {
+    if (completed.length === 0) {
+      financeCompletedBody.innerHTML = emptyCompletedMsg;
+    } else {
       financeCompletedBody.innerHTML = completed.slice(0, 5).map(w => createCompletedWithdrawalRowHtml(w)).join('');
     }
-    if (fullCompletedBody) {
-      fullCompletedBody.innerHTML = completed.map(w => createCompletedWithdrawalRowHtml(w)).join('');
+  }
+
+  // Full logs subpage with search & filter
+  if (fullCompletedBody) {
+    const logsSearchInput = document.getElementById('admWithdrawalLogsSearchInputFull');
+    const logsStatusSelect = document.getElementById('admWithdrawalLogsStatusFilterFull');
+    const logsQuery = (logsSearchInput?.value || '').toLowerCase().trim();
+    const logsStatus = logsStatusSelect?.value || 'all';
+
+    let filteredCompleted = completed;
+    if (logsStatus !== 'all') {
+      filteredCompleted = filteredCompleted.filter(w => w.status === logsStatus);
+    }
+    if (logsQuery) {
+      filteredCompleted = filteredCompleted.filter(w => {
+        const userName = (w.userName || '').toLowerCase();
+        const bankName = (w.bankName || '').toLowerCase();
+        const accNum = (w.accountNumber || '').toLowerCase();
+        const amount = String(w.amountNaira || '');
+        const status = (w.status || '').toLowerCase();
+        const reason = (w.declineReason || '').toLowerCase();
+        const dateStr = new Date(w.requestedAt).toLocaleDateString().toLowerCase();
+        return userName.includes(logsQuery) || bankName.includes(logsQuery) || accNum.includes(logsQuery) || amount.includes(logsQuery) || status.includes(logsQuery) || reason.includes(logsQuery) || dateStr.includes(logsQuery);
+      });
+    }
+
+    if (fullLogsBadge) {
+      fullLogsBadge.textContent = (logsQuery || logsStatus !== 'all')
+        ? `${filteredCompleted.length} of ${completed.length} Found`
+        : `${completed.length} Records`;
+    }
+
+    if (filteredCompleted.length === 0) {
+      fullCompletedBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            ${(logsQuery || logsStatus !== 'all') ? 'No transaction logs match your search and filter criteria.' : 'No completed transactions in history.'}
+          </td>
+        </tr>
+      `;
+    } else {
+      fullCompletedBody.innerHTML = filteredCompleted.map(w => createCompletedWithdrawalRowHtml(w)).join('');
     }
   }
 }
@@ -1488,6 +1596,7 @@ function renderAdminConversationList() {
   const users = window.TaskEarnDB.getUsers();
   const allMessages = window.TaskEarnDB.getMessages();
   const container = document.getElementById('admConversationList');
+  if (!container) return;
 
   const userMap = {};
   allMessages.forEach(m => {
@@ -1495,13 +1604,37 @@ function renderAdminConversationList() {
   });
 
   const chatUsers = users.filter(u => userMap[u.id]);
+  const convCountBadge = document.getElementById('admInboxConvCountBadge');
 
   if (chatUsers.length === 0) {
-    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 12px;">No active conversations yet.</div>`;
+    if (convCountBadge) convCountBadge.textContent = '0';
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 12px; text-align: center;">No active conversations yet.</div>`;
     return;
   }
 
-  container.innerHTML = chatUsers.map(u => {
+  const searchInput = document.getElementById('admInboxSearchInput');
+  const query = (searchInput?.value || '').toLowerCase().trim();
+
+  let filteredUsers = chatUsers;
+  if (query) {
+    filteredUsers = chatUsers.filter(u => {
+      const name = `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}`.toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const phone = (u.phone || '').toLowerCase();
+      return name.includes(query) || email.includes(query) || phone.includes(query);
+    });
+  }
+
+  if (convCountBadge) {
+    convCountBadge.textContent = query ? `${filteredUsers.length}/${chatUsers.length}` : `${chatUsers.length}`;
+  }
+
+  if (filteredUsers.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 12px; text-align: center;">No conversations match "${escapeHtml(query)}".</div>`;
+    return;
+  }
+
+  container.innerHTML = filteredUsers.map(u => {
     const isSelected = selectedUserForChat && selectedUserForChat.id === u.id;
     return `
       <div style="padding: 10px 12px; border-radius: var(--radius-md); background-color: ${isSelected ? 'var(--primary-green-light)' : 'var(--bg-subtle)'}; cursor: pointer; display: flex; align-items: center; gap: 10px;" onclick="selectUserForAdminChat('${u.id}')">
@@ -1516,9 +1649,9 @@ function renderAdminConversationList() {
     `;
   }).join('');
 
-  // Auto-select on desktop only
-  if (!selectedUserForChat && chatUsers.length > 0 && window.innerWidth >= 900) {
-    selectUserForAdminChat(chatUsers[0].id);
+  // Auto-select on desktop only if nothing currently selected
+  if (!selectedUserForChat && filteredUsers.length > 0 && window.innerWidth >= 900) {
+    selectUserForAdminChat(filteredUsers[0].id);
   }
 }
 

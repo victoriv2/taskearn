@@ -934,6 +934,14 @@
               </div>
             </div>
 
+            <!-- Toolbar for search -->
+            <div class="toolbar" style="margin-bottom: 14px;">
+              <div class="search-box">
+                <span id="admTasksFeedSearchIconFull"></span>
+                <input type="text" id="admRecentActivitySearchInputFull" placeholder="Search by user, task title, points, or verification mode..." oninput="renderRecentActivity()">
+              </div>
+            </div>
+
             <div class="table-responsive">
               <table>
                 <thead>
@@ -1012,6 +1020,14 @@
               </div>
             </div>
 
+            <!-- Toolbar for search -->
+            <div class="toolbar" style="margin-bottom: 14px;">
+              <div class="search-box">
+                <span id="admPendingWithdrawalsSearchIconFull"></span>
+                <input type="text" id="admPendingWithdrawalsSearchInputFull" placeholder="Search by user, bank, account number, or amount..." oninput="renderWithdrawalsQueue()">
+              </div>
+            </div>
+
             <div class="table-responsive">
               <table>
                 <thead>
@@ -1045,6 +1061,21 @@
               </div>
             </div>
 
+            <!-- Toolbar for search & filter -->
+            <div class="toolbar" style="margin-bottom: 14px;">
+              <div class="search-box">
+                <span id="admWithdrawalLogsSearchIconFull"></span>
+                <input type="text" id="admWithdrawalLogsSearchInputFull" placeholder="Search by user, bank, account number, amount, or reason..." oninput="renderWithdrawalsQueue()">
+              </div>
+              <div class="filter-actions">
+                <select id="admWithdrawalLogsStatusFilterFull" onchange="renderWithdrawalsQueue()">
+                  <option value="all">All Statuses</option>
+                  <option value="approved">Approved Only</option>
+                  <option value="declined">Declined Only</option>
+                </select>
+              </div>
+            </div>
+
             <div class="table-responsive">
               <table>
                 <thead>
@@ -1075,9 +1106,16 @@
 
             <div class="inbox-layout viewing-list" id="admInboxLayout">
               <div class="inbox-conversations-panel card" style="padding: 14px; margin-bottom: 0;">
-                <h4 style="font-size: 0.82rem; text-transform: uppercase; color: var(--text-muted); padding: 6px 8px; margin-bottom: 6px;">
-                  User Conversations
-                </h4>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <h4 style="font-size: 0.82rem; text-transform: uppercase; color: var(--text-muted); padding: 0; margin: 0;">
+                    User Conversations
+                  </h4>
+                  <span class="badge badge-active" id="admInboxConvCountBadge" style="font-size: 0.72rem;">0</span>
+                </div>
+                <div class="search-box" style="margin-bottom: 12px;">
+                  <span id="admInboxSearchIcon"></span>
+                  <input type="text" id="admInboxSearchInput" placeholder="Search conversations by user..." oninput="renderAdminConversationList()">
+                </div>
                 <div id="admConversationList" style="display: flex; flex-direction: column; gap: 8px;">
                   <!-- Dynamically rendered -->
                 </div>
