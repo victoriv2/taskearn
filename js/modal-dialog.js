@@ -348,6 +348,11 @@
   function interceptInlineAlert(el) {
     if (!el || el.dataset.modalIntercepted === 'true') return;
     
+    // Skip if explicitly marked as static notice or not to be intercepted
+    if (el.dataset.noModal === 'true' || el.classList.contains('static-notice') || el.classList.contains('info-notice-card')) {
+      return;
+    }
+
     // Check if element is an alert box
     const isAlert = el.classList.contains('alert') || (el.id && el.id.toLowerCase().includes('alert'));
     if (!isAlert) return;
@@ -397,11 +402,6 @@
       attributes: true,
       attributeFilter: ['class', 'style']
     });
-
-    // Check immediately in case text is already present
-    if (el.textContent && el.textContent.trim()) {
-      checkAndShow();
-    }
   }
 
   // Scan and attach to all existing and future alert elements
