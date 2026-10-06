@@ -103,7 +103,7 @@ function refreshAdminDataViews(changedKeys = null) {
     if (activeSubpage) {
       const pageId = activeSubpage.id.replace('admMorePage-', '');
       if (pageId === 'users') {
-        const fullUserSearch = document.getElementById('admFullUserSearchInput');
+        const fullUserSearch = document.getElementById('admUserSearchInputFull') || document.getElementById('admFullUserSearchInput');
         if (!activeEl || activeEl !== fullUserSearch) renderAdminUsers();
       } else if (pageId === 'tasks-feed') {
         renderRecentActivity();
