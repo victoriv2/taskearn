@@ -271,7 +271,7 @@ function showVerifyAlert(message, type = 'error') {
 async function initiatePaystackVerification() {
   if (!activeUser) return;
   const settings = window.TaskEarnDB.getSettings();
-  const pubKey = settings.paystackPublicKey || 'pk_live_732d9b62cd035b8dad96e981d7f6982540342e80';
+  const pubKey = settings.paystackPublicKey || 'pk_live_7ad543047c70c866ded395106782bf387c9fff6f';
   const fee = Number(settings.verificationFeeNaira) || 100;
   const payBtn = document.getElementById('payVerifyBtn');
 

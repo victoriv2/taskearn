@@ -17,14 +17,14 @@ const STORAGE_KEYS = {
 };
 
 // Default System Configuration
-const _DEFAULT_PAYSTACK_SEC = typeof atob === 'function' ? atob('c2tfbGl2ZV8zNjBiZTI2ZTAzMTA4YzE2NmFmZjM5ZGFmNTFkMDg0M2E5ZjJhYjJl') : '';
+const _DEFAULT_PAYSTACK_SEC = typeof atob === 'function' ? atob('c2tfbGl2ZV83YTVkODU5Y2U5MzZiNDYwMjgxMDVjMjc1NDc2NWUwNDQ1MDcwNzc1') : '';
 
 const DEFAULT_SETTINGS = {
   pointRateNaira: 1.0,      // 1 Point = 1 Naira
   referralPoints: 150,      // Points rewarded per successful referral
   minWithdrawalNaira: 1000, // Minimum withdrawal threshold in Naira
   verificationFeeNaira: 100, // One-time account verification fee in Naira
-  paystackPublicKey: 'pk_live_732d9b62cd035b8dad96e981d7f6982540342e80',
+  paystackPublicKey: 'pk_live_7ad543047c70c866ded395106782bf387c9fff6f',
   paystackSecretKey: _DEFAULT_PAYSTACK_SEC,
   platformName: 'TaskEarn',
   adminEmail: 'admin@taskearn.com',

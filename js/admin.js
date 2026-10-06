@@ -1578,7 +1578,7 @@ function loadFinancialSettings(force = false) {
   if (verificationFeeInput) verificationFeeInput.value = settings.verificationFeeNaira ?? 100;
 
   const paystackKeyInput = document.getElementById('settingPaystackKey');
-  if (paystackKeyInput) paystackKeyInput.value = settings.paystackPublicKey || 'pk_live_732d9b62cd035b8dad96e981d7f6982540342e80';
+  if (paystackKeyInput) paystackKeyInput.value = settings.paystackPublicKey || 'pk_live_7ad543047c70c866ded395106782bf387c9fff6f';
 
   const paystackSecretInput = document.getElementById('settingPaystackSecretKey');
   if (paystackSecretInput) paystackSecretInput.value = settings.paystackSecretKey || (window.TaskEarnDB && window.TaskEarnDB.getSettings().paystackSecretKey) || '';
