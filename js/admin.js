@@ -949,8 +949,8 @@ function openUserDrawer(userId) {
       <h5 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">Reset User Password</h5>
       <div id="drawerPasswordAlert" style="display: none; margin-bottom: 8px;"></div>
       <div style="display: flex; gap: 8px;">
-        <input type="text" id="drawerNewUserPassword" placeholder="Enter new password" style="flex: 1; font-size: 0.82rem; padding: 6px 8px;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="handleAdminResetUserPassword('${user.id}')">Set Password</button>
+        <input type="text" id="drawerNewUserPassword" placeholder="Enter new password" style="flex: 1; font-size: 0.82rem; padding: 6px 8px;" onkeydown="if(event.key === 'Enter') handleAdminResetUserPassword('${user.id}')">
+        <button type="button" class="btn btn-secondary btn-sm" id="btnDrawerSetPassword" onclick="handleAdminResetUserPassword('${user.id}')">Set Password</button>
       </div>
       <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">Must have min 6 characters with upper, lower, number, and symbol.</div>
     </div>
@@ -1053,6 +1053,7 @@ async function handleAdminRemoveUserAvatar(userId) {
 
 async function handleAdminResetUserPassword(userId) {
   const input = document.getElementById('drawerNewUserPassword');
+  const btn = document.getElementById('btnDrawerSetPassword');
   const newPass = (input?.value || '').trim();
   const alertEl = document.getElementById('drawerPasswordAlert');
   if (!newPass) {
@@ -1064,7 +1065,12 @@ async function handleAdminResetUserPassword(userId) {
     return;
   }
 
+  const originalText = btn ? btn.textContent : 'Set Password';
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+    }
     window.TaskEarnDB.updateUser(userId, { password: newPass });
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
       await window.TaskEarnDB.pushToCloud();
@@ -1081,6 +1087,11 @@ async function handleAdminResetUserPassword(userId) {
       alertEl.className = 'alert alert-error';
       alertEl.textContent = err.message;
       alertEl.style.display = 'block';
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
     }
   }
 }
