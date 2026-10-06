@@ -1,12 +1,7 @@
-/**
- * TaskEarn - Cloud & Local Data Store Service Layer
- * Powered by JSONBin.io cloud database with real-time multi-client synchronization.
- */
-
-const JSONBIN_CONFIG = {
-  MASTER_KEY: '$2a$10$nnSfeJQZY9FjkKghjfzlPuWFrIe/JV46TLSQbnho77T3kkmx/mMvK',
-  BIN_ID: '6ac0c39bac6210605a0ee84a',
-  BASE_URL: 'https://api.jsonbin.io/v3/b'
+const SUPABASE_CONFIG = {
+  URL: 'https://wnfucgrjovrdepxnljyz.supabase.co',
+  ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduZnVjZ3Jqb3ZyZGVweG5sanl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNDMxOTcsImV4cCI6MjEwNjgxOTE5N30.qqDX_Saf0_aRREFdwpdwyhJH3t_nQD6M94FRFnbZ_gE',
+  DOC_ID: 'production'
 };
 
 const STORAGE_KEYS = {
@@ -100,7 +95,7 @@ class DataStore {
     }
   }
 
-  // =================== JSONBIN CLOUD INTEGRATION ===================
+  // =================== SUPABASE CLOUD INTEGRATION ===================
 
   setupCloudSync() {
     // Pull immediately on startup
@@ -243,8 +238,8 @@ class DataStore {
 
   getCloudStatus() {
     return {
-      provider: 'JSONBin.io',
-      binId: JSONBIN_CONFIG.BIN_ID,
+      provider: 'Supabase',
+      projectId: 'wnfucgrjovrdepxnljyz',
       connected: this._cloudStatus.connected,
       lastSync: this._cloudStatus.lastSync,
       error: this._cloudStatus.error
@@ -259,7 +254,7 @@ class DataStore {
   }
 
   async pushToCloud() {
-    if (!JSONBIN_CONFIG.MASTER_KEY || !JSONBIN_CONFIG.BIN_ID) return false;
+    if (!SUPABASE_CONFIG.URL || !SUPABASE_CONFIG.ANON_KEY) return false;
 
     // Clear any pending debounced timeout since we are pushing now
     if (this._pushTimeout) {
@@ -300,17 +295,23 @@ class DataStore {
           messages: this._get(STORAGE_KEYS.MESSAGES)
         };
 
-        const res = await this._fetchWithTimeout(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
-          method: 'PUT',
+        const res = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state`, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+            'apikey': SUPABASE_CONFIG.ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+            'Prefer': 'resolution=merge-duplicates'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            id: SUPABASE_CONFIG.DOC_ID,
+            data: payload,
+            updated_at: new Date().toISOString()
+          })
         }, 8000);
 
         if (!res.ok) {
-          throw new Error(`JSONBin save error: ${res.status} ${res.statusText}`);
+          throw new Error(`Supabase save error: ${res.status} ${res.statusText}`);
         }
 
         this._cloudStatus.connected = true;
@@ -320,7 +321,7 @@ class DataStore {
         this._notifySync('push', { payload, isLocalPush: true });
         return true;
       } catch (err) {
-        console.warn('JSONBin push failed (cached locally):', err.message);
+        console.warn('Supabase push failed (cached locally):', err.message);
         this._cloudStatus.error = err.message;
         throw err;
       } finally {
@@ -333,7 +334,7 @@ class DataStore {
   }
 
   async pullFromCloud(force = false) {
-    if (!JSONBIN_CONFIG.MASTER_KEY || !JSONBIN_CONFIG.BIN_ID) return null;
+    if (!SUPABASE_CONFIG.URL || !SUPABASE_CONFIG.ANON_KEY) return null;
 
     // If local changes are currently pushing, wait so we don't pull stale cloud data
     if (this._isPushing && this._pushPromise) {
@@ -356,22 +357,22 @@ class DataStore {
     this._pullPromise = (async () => {
       this._isPulling = true;
       try {
-        // Cache buster + no-cache headers to guarantee fresh data across all browsers/devices
-        const res = await this._fetchWithTimeout(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest?t=${Date.now()}`, {
+        const res = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at&t=${Date.now()}`, {
           method: 'GET',
           headers: {
-            'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
+            'apikey': SUPABASE_CONFIG.ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
           }
         }, 8000);
 
         if (!res.ok) {
-          throw new Error(`JSONBin fetch error: ${res.status} ${res.statusText}`);
+          throw new Error(`Supabase fetch error: ${res.status} ${res.statusText}`);
         }
 
         const json = await res.json();
-        const record = json.record;
+        const record = Array.isArray(json) && json.length > 0 ? json[0].data : null;
 
         if (record && typeof record === 'object') {
           const localUsers = this._get(STORAGE_KEYS.USERS);
@@ -455,7 +456,7 @@ class DataStore {
         }
         return null;
       } catch (err) {
-        console.warn('JSONBin pull failed (using local cache):', err.message);
+        console.warn('Supabase pull failed (using local cache):', err.message);
         this._cloudStatus.error = err.message;
         return null;
       } finally {

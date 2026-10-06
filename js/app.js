@@ -484,7 +484,7 @@ async function handleLoginSubmit(event) {
       btn.disabled = true;
       btn.textContent = 'Verifying credentials...';
     }
-    // Pull fresh data from JSONBin cloud before verifying login to prevent stale credentials
+    // Pull fresh data from Supabase cloud before verifying login to prevent stale credentials
     if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud) {
       await window.TaskEarnDB.pullFromCloud(true);
     }
@@ -1225,7 +1225,7 @@ async function handleSaveBankDetails(event) {
       }
     });
 
-    // Push updated profile to JSONBin cloud immediately and wait for it
+    // Push updated profile to Supabase cloud immediately and wait for it
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
       await window.TaskEarnDB.pushToCloud();
     }
@@ -1845,7 +1845,7 @@ async function handlePasswordChange(event) {
     window.TaskEarnDB.updateUser(activeUser.id, { password: newPass });
     activeUser = window.TaskEarnDB.getCurrentUser();
 
-    // Await cloud sync so the remote JSONBin record is updated BEFORE user navigates or switches devices
+    // Await cloud sync so the remote Supabase record is updated BEFORE user navigates or switches devices
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
       await window.TaskEarnDB.pushToCloud();
     }

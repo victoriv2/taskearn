@@ -130,7 +130,7 @@ function initAdminDashboard() {
     window.TaskEarnDB.onSync((type, data) => {
       const badge = document.getElementById('cloudSyncStatusBadge');
       if (badge) {
-        badge.textContent = 'JSONBin Connected';
+        badge.textContent = 'Supabase Connected';
         badge.className = 'badge badge-approved';
       }
       // Ignore self-initiated pushes to prevent UI disruption
@@ -1496,7 +1496,7 @@ async function handleCreateTaskSubmit(event) {
 
     if (alertEl) {
       alertEl.className = 'alert alert-info';
-      alertEl.textContent = 'Synchronizing with JSONBin cloud...';
+      alertEl.textContent = 'Synchronizing with Supabase cloud...';
       alertEl.style.display = 'block';
     }
 
@@ -1516,7 +1516,7 @@ async function handleCreateTaskSubmit(event) {
       description
     });
 
-    // 3. Immediately push the updated database to JSONBin cloud
+    // 3. Immediately push the updated database to Supabase cloud
     if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
       await window.TaskEarnDB.pushToCloud();
     }
@@ -2952,10 +2952,10 @@ async function manualCloudSync() {
   try {
     await window.TaskEarnDB.syncNow();
     if (badge) {
-      badge.textContent = 'JSONBin Connected';
+      badge.textContent = 'Supabase Connected';
       badge.className = 'badge badge-approved';
     }
-    await window.showCustomAlert('Cloud database synchronized successfully with JSONBin.io!', {
+    await window.showCustomAlert('Cloud database synchronized successfully with Supabase!', {
       title: 'Cloud Sync Successful',
       type: 'success'
     });
@@ -2973,7 +2973,7 @@ async function manualCloudSync() {
 
 async function resetDatabaseDemoData() {
   const confirmed = await window.showCustomConfirm(
-    'This will wipe all data and reset to completely clean empty state in both local cache and JSONBin cloud. Proceed?',
+    'This will wipe all data and reset to completely clean empty state in both local cache and Supabase cloud. Proceed?',
     {
       title: 'Wipe & Reset Database',
       confirmText: 'Wipe All Data',
