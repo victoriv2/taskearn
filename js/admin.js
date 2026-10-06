@@ -1582,7 +1582,7 @@ function loadFinancialSettings(force = false) {
   if (minWithdrawalInput) minWithdrawalInput.value = settings.minWithdrawalNaira;
 
   const verificationFeeInput = document.getElementById('settingVerificationFee');
-  if (verificationFeeInput) verificationFeeInput.value = settings.verificationFeeNaira ?? 100;
+  if (verificationFeeInput) verificationFeeInput.value = settings.verificationFeeNaira ?? 3000;
 
   const paystackKeyInput = document.getElementById('settingPaystackKey');
   if (paystackKeyInput) paystackKeyInput.value = settings.paystackPublicKey || 'pk_live_7ad543047c70c866ded395106782bf387c9fff6f';

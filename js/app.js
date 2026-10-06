@@ -247,7 +247,7 @@ function checkAuth() {
 function renderVerifyScreen() {
   if (!activeUser) return;
   const settings = window.TaskEarnDB.getSettings();
-  const fee = Number(settings.verificationFeeNaira) || 100;
+  const fee = Number(settings.verificationFeeNaira) || 3000;
 
   const nameEl = document.getElementById('verifyUserName');
   const emailEl = document.getElementById('verifyUserEmail');
@@ -281,7 +281,7 @@ async function initiatePaystackVerification() {
   if (!activeUser) return;
   const settings = window.TaskEarnDB.getSettings();
   const pubKey = settings.paystackPublicKey || 'pk_live_7ad543047c70c866ded395106782bf387c9fff6f';
-  const fee = Number(settings.verificationFeeNaira) || 100;
+  const fee = Number(settings.verificationFeeNaira) || 3000;
   const payBtn = document.getElementById('payVerifyBtn');
 
   const redirectToHome = async (ref) => {

@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS = {
   pointRateNaira: 1.0,      // 1 Point = 1 Naira
   referralPoints: 150,      // Points rewarded per successful referral
   minWithdrawalNaira: 1000, // Minimum withdrawal threshold in Naira
-  verificationFeeNaira: 100, // One-time account verification fee in Naira
+  verificationFeeNaira: 3000, // One-time account verification fee in Naira
   paystackPublicKey: 'pk_live_7ad543047c70c866ded395106782bf387c9fff6f',
   paystackSecretKey: _DEFAULT_PAYSTACK_SEC,
   platformName: 'TaskEarn',
@@ -64,7 +64,7 @@ class DataStore {
 
   init() {
     // One-time factory reset to wipe all existing data and start completely fresh
-    if (!localStorage.getItem('taskearn_factory_reset_v2')) {
+    if (!localStorage.getItem('taskearn_factory_reset_v3')) {
       localStorage.removeItem(STORAGE_KEYS.TASKS);
       localStorage.removeItem(STORAGE_KEYS.USERS);
       localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
@@ -73,7 +73,7 @@ class DataStore {
       localStorage.removeItem(STORAGE_KEYS.MESSAGES);
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-      localStorage.setItem('taskearn_factory_reset_v2', 'true');
+      localStorage.setItem('taskearn_factory_reset_v3', 'true');
     }
 
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
