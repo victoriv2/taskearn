@@ -538,7 +538,7 @@ async function handleSignupSubmit(event) {
     }
     // Pull fresh data from cloud first to ensure latest uniqueness checks
     if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud) {
-      await window.TaskEarnDB.pullFromCloud();
+      await window.TaskEarnDB.pullFromCloud(true);
     }
     const user = window.TaskEarnDB.registerUser({
       firstName,

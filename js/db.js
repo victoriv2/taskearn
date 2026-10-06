@@ -748,8 +748,15 @@ class DataStore {
 
     const users = this.getUsers();
     let referrer = null;
-    if (referralCode && referralCode.trim()) {
-      referrer = this.getUserByReferralCode(referralCode.trim());
+    const cleanReferral = (referralCode || '').trim();
+    if (cleanReferral) {
+      referrer = this.getUserByReferralCode(cleanReferral);
+      if (!referrer) {
+        throw new Error(`Referral username "${cleanReferral}" does not exist. Please check the referral username or leave it blank.`);
+      }
+      if (referrer.username && referrer.username.toLowerCase() === cleanUsername.toLowerCase()) {
+        throw new Error('You cannot use your own username as a referral code.');
+      }
     }
 
     const newUser = {
