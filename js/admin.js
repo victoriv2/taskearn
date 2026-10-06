@@ -257,9 +257,16 @@ async function handleAdminLoginSubmit(event) {
     window.TaskEarnDB.loginAdmin(email, pass);
     checkAdminAuth();
   } catch (err) {
-    alertEl.className = 'alert alert-error';
-    alertEl.textContent = err.message;
-    alertEl.style.display = 'block';
+    if (window.showCustomAlert) {
+      window.showCustomAlert(err.message, {
+        title: 'Authentication Failed',
+        type: 'danger'
+      });
+    } else {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = err.message;
+      alertEl.style.display = 'block';
+    }
   } finally {
     if (btn) {
       btn.disabled = false;

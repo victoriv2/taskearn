@@ -261,11 +261,20 @@ function renderVerifyScreen() {
 }
 
 function showVerifyAlert(message, type = 'error') {
-  const alertEl = document.getElementById('verifyAlert');
-  if (!alertEl) return;
-  alertEl.className = `alert alert-${type}`;
-  alertEl.textContent = message;
-  alertEl.style.display = 'block';
+  if (window.showCustomAlert) {
+    const title = type === 'success' ? 'Payment Verified' : 'Verification Notice';
+    window.showCustomAlert(message, {
+      title: title,
+      type: type === 'error' ? 'danger' : type
+    });
+  } else {
+    const alertEl = document.getElementById('verifyAlert');
+    if (alertEl) {
+      alertEl.className = `alert alert-${type}`;
+      alertEl.textContent = message;
+      alertEl.style.display = 'block';
+    }
+  }
 }
 
 async function initiatePaystackVerification() {
@@ -460,10 +469,20 @@ function toggleAuthForm(type, updateHistory = true) {
 }
 
 function showAuthAlert(message, type = 'error') {
-  const alertEl = document.getElementById('authAlert');
-  alertEl.className = `alert alert-${type}`;
-  alertEl.textContent = message;
-  alertEl.style.display = 'block';
+  if (window.showCustomAlert) {
+    const title = type === 'success' ? 'Success' : (type === 'warning' ? 'Attention' : 'Account Notice');
+    window.showCustomAlert(message, {
+      title: title,
+      type: type === 'error' ? 'danger' : type
+    });
+  } else {
+    const alertEl = document.getElementById('authAlert');
+    if (alertEl) {
+      alertEl.className = `alert alert-${type}`;
+      alertEl.textContent = message;
+      alertEl.style.display = 'block';
+    }
+  }
 }
 
 let isSubmittingLogin = false;
