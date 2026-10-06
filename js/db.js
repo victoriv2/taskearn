@@ -49,6 +49,8 @@ class DataStore {
     this._hasQueuedPush = false;
     this._isPulling = false;
     this._pullPromise = null;
+    this._lastCloudUpdatedAt = null;
+    this._pollTimer = null;
     this._cloudStatus = {
       connected: false,
       lastSync: null,
@@ -116,16 +118,18 @@ class DataStore {
         this._notifyNetworkStatus(false, 'You are currently offline. Changes are saved safely on your device.');
       });
 
-      // Periodic background polling every 15 seconds to keep all users & admin in sync
+      // Smart background polling: only polls when tab is visible every 45s (protects free-tier API limits)
       setInterval(() => {
-        this.pullFromCloud();
-      }, 15000);
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          this.pullFromCloud();
+        }
+      }, 45000);
 
-      // Pull when tab gains focus or becomes visible (throttled to at most once every 12 seconds)
+      // Pull when tab regains focus or becomes visible (throttled to at most once every 25 seconds)
       let lastFocusPull = Date.now();
       const throttledFocusPull = () => {
         const now = Date.now();
-        if (now - lastFocusPull >= 12000) {
+        if (now - lastFocusPull >= 25000) {
           lastFocusPull = now;
           this.pullFromCloud();
         }
@@ -248,7 +252,7 @@ class DataStore {
     };
   }
 
-  scheduleCloudPush(delay = 300) {
+  scheduleCloudPush(delay = 1200) {
     if (this._pushTimeout) clearTimeout(this._pushTimeout);
     this._pushTimeout = setTimeout(() => {
       this.pushToCloud();
@@ -359,6 +363,32 @@ class DataStore {
     this._pullPromise = (async () => {
       this._isPulling = true;
       try {
+        // Step 1: Lightweight HEAD check on updated_at to avoid downloading full state if nothing changed
+        if (!force && this._lastCloudUpdatedAt) {
+          try {
+            const headRes = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=updated_at&t=${Date.now()}`, {
+              method: 'GET',
+              headers: {
+                'apikey': SUPABASE_CONFIG.ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+              }
+            }, 6000);
+            if (headRes.ok) {
+              const headJson = await headRes.json();
+              const remoteUpdatedAt = Array.isArray(headJson) && headJson.length > 0 ? headJson[0].updated_at : null;
+              if (remoteUpdatedAt && remoteUpdatedAt === this._lastCloudUpdatedAt) {
+                // Cloud has not changed, skip full data transfer to conserve bandwidth & free-tier quota
+                this._cloudStatus.connected = true;
+                return null;
+              }
+            }
+          } catch (headErr) {
+            // Fall through to full fetch if lightweight check fails
+          }
+        }
+
         const res = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at&t=${Date.now()}`, {
           method: 'GET',
           headers: {
@@ -375,6 +405,10 @@ class DataStore {
 
         const json = await res.json();
         const record = Array.isArray(json) && json.length > 0 ? json[0].data : null;
+        const cloudUpdatedAt = Array.isArray(json) && json.length > 0 ? json[0].updated_at : null;
+        if (cloudUpdatedAt) {
+          this._lastCloudUpdatedAt = cloudUpdatedAt;
+        }
 
         if (record && typeof record === 'object') {
           const localUsers = this._get(STORAGE_KEYS.USERS);
