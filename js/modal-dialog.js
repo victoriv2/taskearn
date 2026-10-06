@@ -344,4 +344,96 @@
     return promptModal(message, defaultValue);
   };
 
+  // Automatic Modal Router: Intercepts all inline alert banners and displays them as modals
+  function interceptInlineAlert(el) {
+    if (!el || el.dataset.modalIntercepted === 'true') return;
+    
+    // Check if element is an alert box
+    const isAlert = el.classList.contains('alert') || (el.id && el.id.toLowerCase().includes('alert'));
+    if (!isAlert) return;
+
+    // Keep the element visually hidden in the page flow so it never appears as a raw inline box
+    el.style.setProperty('display', 'none', 'important');
+    el.dataset.modalIntercepted = 'true';
+
+    let lastShownText = '';
+    let lastShownTime = 0;
+
+    const checkAndShow = () => {
+      const text = (el.textContent || '').trim();
+      const now = Date.now();
+      if (!text || (text === lastShownText && now - lastShownTime < 2500)) return;
+
+      lastShownText = text;
+      lastShownTime = now;
+
+      const cls = el.className || '';
+      let type = 'info';
+      let title = 'Notification';
+
+      if (cls.includes('alert-error') || cls.includes('alert-danger')) {
+        type = 'danger';
+        title = 'Notice';
+      } else if (cls.includes('alert-success')) {
+        type = 'success';
+        title = 'Success';
+      } else if (cls.includes('alert-warning')) {
+        type = 'warning';
+        title = 'Attention';
+      }
+
+      alertModal(text, { title, type });
+    };
+
+    // Observe text and class changes on this alert element
+    const observer = new MutationObserver(() => {
+      checkAndShow();
+    });
+
+    observer.observe(el, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+
+    // Check immediately in case text is already present
+    if (el.textContent && el.textContent.trim()) {
+      checkAndShow();
+    }
+  }
+
+  // Scan and attach to all existing and future alert elements
+  function initAlertInterceptors() {
+    document.querySelectorAll('.alert, [id*="Alert"], [id*="alert"]').forEach(interceptInlineAlert);
+
+    const bodyObserver = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        m.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) {
+            if (node.classList?.contains('alert') || (node.id && node.id.toLowerCase().includes('alert'))) {
+              interceptInlineAlert(node);
+            }
+            node.querySelectorAll?.('.alert, [id*="Alert"], [id*="alert"]').forEach(interceptInlineAlert);
+          }
+        });
+      });
+    });
+
+    if (document.body) {
+      bodyObserver.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        bodyObserver.observe(document.body, { childList: true, subtree: true });
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAlertInterceptors);
+  } else {
+    initAlertInterceptors();
+  }
+
 })();
