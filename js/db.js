@@ -57,7 +57,9 @@ class DataStore {
     this._cloudStatus = {
       connected: false,
       lastSync: null,
-      error: null
+      error: null,
+      isOffline: false,
+      isSlow: false
     };
     this.init();
     this.setupCloudSync();
@@ -105,6 +107,18 @@ class DataStore {
     this.pullFromCloud();
 
     if (typeof window !== 'undefined') {
+      // Listen to browser network connectivity changes
+      window.addEventListener('online', () => {
+        this._cloudStatus.isOffline = false;
+        this._notifyNetworkStatus(true, 'Connection restored. Cloud synchronizing...');
+        this.syncNow().catch(() => {});
+      });
+
+      window.addEventListener('offline', () => {
+        this._cloudStatus.isOffline = true;
+        this._notifyNetworkStatus(false, 'You are currently offline. Changes are saved safely on your device.');
+      });
+
       // Periodic background polling every 15 seconds to keep all users & admin in sync
       setInterval(() => {
         this.pullFromCloud();
@@ -126,6 +140,88 @@ class DataStore {
         }
       });
       window.addEventListener('focus', throttledFocusPull);
+    }
+  }
+
+  _notifyNetworkStatus(isOnline, message = '') {
+    if (typeof document === 'undefined') return;
+    let banner = document.getElementById('taskearnNetworkBanner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'taskearnNetworkBanner';
+      banner.style.cssText = `
+        position: fixed;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999999;
+        padding: 8px 18px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        display: none;
+        max-width: 90vw;
+        text-align: center;
+        pointer-events: none;
+      `;
+      document.body.appendChild(banner);
+    }
+
+    if (!isOnline) {
+      banner.style.background = '#fef3c7';
+      banner.style.color = '#92400e';
+      banner.style.border = '1px solid #f59e0b';
+      banner.textContent = message || 'Slow or unstable network connection detected. Your data is safely saved on this device.';
+      banner.style.display = 'block';
+      banner.style.opacity = '1';
+    } else if (banner.style.display !== 'none' && banner.style.opacity === '1') {
+      banner.style.background = '#d1fae5';
+      banner.style.color = '#065f46';
+      banner.style.border = '1px solid #10b981';
+      banner.textContent = message || 'Connection restored. Cloud synchronized!';
+      setTimeout(() => {
+        banner.style.opacity = '0';
+        setTimeout(() => { banner.style.display = 'none'; }, 400);
+      }, 3000);
+    }
+  }
+
+  async _fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      this._cloudStatus.connected = false;
+      this._cloudStatus.isOffline = true;
+      this._notifyNetworkStatus(false, 'You are currently offline. Changes are saved safely on your device.');
+      throw new Error('Device is offline.');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      if (this._cloudStatus.isOffline || this._cloudStatus.isSlow) {
+        this._notifyNetworkStatus(true, 'Connection restored. Cloud synchronized.');
+      }
+      this._cloudStatus.isOffline = false;
+      this._cloudStatus.isSlow = false;
+      return response;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        this._cloudStatus.isSlow = true;
+        this._notifyNetworkStatus(false, 'Slow or unstable network connection detected. Your data is safely saved locally.');
+        throw new Error('Network timeout: connection is slow.');
+      }
+      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+        this._cloudStatus.isSlow = true;
+        this._notifyNetworkStatus(false, 'Unstable network connection. Your data is safely saved locally.');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -204,14 +300,14 @@ class DataStore {
           messages: this._get(STORAGE_KEYS.MESSAGES)
         };
 
-        const res = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
+        const res = await this._fetchWithTimeout(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
           },
           body: JSON.stringify(payload)
-        });
+        }, 8000);
 
         if (!res.ok) {
           throw new Error(`JSONBin save error: ${res.status} ${res.statusText}`);
@@ -261,14 +357,14 @@ class DataStore {
       this._isPulling = true;
       try {
         // Cache buster + no-cache headers to guarantee fresh data across all browsers/devices
-        const res = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest?t=${Date.now()}`, {
+        const res = await this._fetchWithTimeout(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest?t=${Date.now()}`, {
           method: 'GET',
           headers: {
             'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
           }
-        });
+        }, 8000);
 
         if (!res.ok) {
           throw new Error(`JSONBin fetch error: ${res.status} ${res.statusText}`);
@@ -1006,6 +1102,23 @@ class DataStore {
       throw new Error('Insufficient points balance.');
     }
 
+    const numPoints = Number(points);
+
+    // Network guard: prevent duplicate withdrawal submissions within 5 seconds for same user & amount
+    const existingWithdrawals = this.getWithdrawals();
+    const recentDuplicate = existingWithdrawals.find(w => 
+      w.userId === userId &&
+      w.status === 'pending' &&
+      w.points === numPoints &&
+      w.accountNumber === cleanAcc &&
+      (Date.now() - new Date(w.requestedAt).getTime()) < 5000
+    );
+
+    if (recentDuplicate) {
+      console.warn('Duplicate withdrawal request prevented by network deduplication guard.');
+      return recentDuplicate;
+    }
+
     // Deduct points from user immediately (held in escrow)
     const newBal = user.pointsBalance - points;
     this.updateUser(userId, {
@@ -1088,17 +1201,34 @@ class DataStore {
   }
 
   sendMessage({ userId, sender, text, image = null }) {
+    const cleanText = (text || '').trim();
+    const msgs = this._get(STORAGE_KEYS.MESSAGES);
+
+    // Network guard: prevent identical message submissions from same sender within 4 seconds
+    const now = Date.now();
+    const isDuplicate = msgs.slice(-10).some(m => 
+      m.userId === userId &&
+      m.sender === sender &&
+      (m.text || '').trim() === cleanText &&
+      (m.image === image || (!m.image && !image)) &&
+      (now - new Date(m.createdAt).getTime()) < 4000
+    );
+
+    if (isDuplicate) {
+      console.warn('Duplicate message prevented by network deduplication guard.');
+      return msgs[msgs.length - 1];
+    }
+
     const message = {
-      id: 'msg_' + Date.now(),
+      id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       userId,
       sender, // 'user' | 'admin'
-      text: text.trim(),
+      text: cleanText,
       image,
       createdAt: new Date().toISOString(),
       read: false
     };
 
-    const msgs = this._get(STORAGE_KEYS.MESSAGES);
     msgs.push(message);
     this._set(STORAGE_KEYS.MESSAGES, msgs);
     return message;

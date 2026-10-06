@@ -466,14 +466,19 @@ function showAuthAlert(message, type = 'error') {
   alertEl.style.display = 'block';
 }
 
+let isSubmittingLogin = false;
+
 async function handleLoginSubmit(event) {
   event.preventDefault();
+  if (isSubmittingLogin) return;
+
   const identifierEl = document.getElementById('loginIdentifier') || document.getElementById('loginEmail');
   const identifier = identifierEl ? identifierEl.value : '';
   const pass = document.getElementById('loginPassword').value;
   const btn = event.target.querySelector('button[type="submit"]');
   const originalText = btn ? btn.textContent : '';
 
+  isSubmittingLogin = true;
   try {
     if (btn) {
       btn.disabled = true;
@@ -489,6 +494,7 @@ async function handleLoginSubmit(event) {
   } catch (err) {
     showAuthAlert(err.message, 'error');
   } finally {
+    isSubmittingLogin = false;
     if (btn) {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -496,8 +502,12 @@ async function handleLoginSubmit(event) {
   }
 }
 
+let isSubmittingSignup = false;
+
 async function handleSignupSubmit(event) {
   event.preventDefault();
+  if (isSubmittingSignup) return;
+
   const firstName = document.getElementById('regFirstName').value;
   const lastName = document.getElementById('regLastName').value;
   const username = (document.getElementById('regUsername') ? document.getElementById('regUsername').value : '').trim();
@@ -520,6 +530,7 @@ async function handleSignupSubmit(event) {
     return;
   }
 
+  isSubmittingSignup = true;
   try {
     if (btn) {
       btn.disabled = true;
@@ -547,6 +558,7 @@ async function handleSignupSubmit(event) {
   } catch (err) {
     showAuthAlert(err.message, 'error');
   } finally {
+    isSubmittingSignup = false;
     if (btn) {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -1383,8 +1395,12 @@ function calculateWithdrawalNaira() {
   document.getElementById('wdrCalculatedNaira').textContent = `Estimated Payout: ₦${naira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
 
+let isSubmittingWithdrawal = false;
+
 async function handleWithdrawalRequest(event) {
   event.preventDefault();
+  if (isSubmittingWithdrawal) return;
+
   const alertEl = document.getElementById('withdrawalAlert');
   const points = Number(document.getElementById('wdrPointsInput').value);
   const btn = event.target.querySelector('button[type="submit"]');
@@ -1408,6 +1424,7 @@ async function handleWithdrawalRequest(event) {
     return;
   }
 
+  isSubmittingWithdrawal = true;
   try {
     if (btn) {
       btn.disabled = true;
@@ -1439,6 +1456,7 @@ async function handleWithdrawalRequest(event) {
     alertEl.textContent = err.message;
     alertEl.style.display = 'block';
   } finally {
+    isSubmittingWithdrawal = false;
     if (btn) {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -1528,23 +1546,39 @@ function clearChatImagePreview() {
   document.getElementById('chatImagePreviewContainer').style.display = 'none';
 }
 
+let isSendingUserMessage = false;
+
 function handleSendUserMessage(event) {
   event.preventDefault();
+  if (isSendingUserMessage) return;
+
   const textInput = document.getElementById('chatTextInput');
-  const text = textInput.value.trim();
-  if (!text && !tempChatImageData) return;
+  const text = (textInput?.value || '').trim();
+  const image = tempChatImageData;
+  if (!text && !image) return;
 
-  window.TaskEarnDB.sendMessage({
-    userId: activeUser.id,
-    sender: 'user',
-    text: text,
-    image: tempChatImageData
-  });
+  isSendingUserMessage = true;
+  const sendBtn = event.target.querySelector('button[type="submit"]');
+  if (sendBtn) sendBtn.disabled = true;
 
-  textInput.value = '';
-  clearChatImagePreview();
-  renderChatMessages();
-  updateUserTabIndicators();
+  try {
+    window.TaskEarnDB.sendMessage({
+      userId: activeUser.id,
+      sender: 'user',
+      text: text,
+      image: image
+    });
+
+    if (textInput) textInput.value = '';
+    clearChatImagePreview();
+    renderChatMessages();
+    updateUserTabIndicators();
+  } finally {
+    setTimeout(() => {
+      isSendingUserMessage = false;
+      if (sendBtn) sendBtn.disabled = false;
+    }, 600);
+  }
 }
 
 // =================== TAB 4: REFERRALS ===================

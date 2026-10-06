@@ -1454,11 +1454,17 @@ function updateCreateTaskNairaPreview() {
 
 document.getElementById('taskPoints')?.addEventListener('input', updateCreateTaskNairaPreview);
 
+let isSubmittingCreateTask = false;
+
 async function handleCreateTaskSubmit(event) {
   event.preventDefault();
+  if (isSubmittingCreateTask) return;
+
   const form = event.target;
   const submitBtn = form.querySelector('button[type="submit"]');
   const originalBtnText = submitBtn ? submitBtn.textContent : 'Publish Task';
+
+  isSubmittingCreateTask = true;
 
   const title = (document.getElementById('taskTitle')?.value || '').trim();
   const category = document.getElementById('taskCategory')?.value || 'Website';
@@ -1540,6 +1546,7 @@ async function handleCreateTaskSubmit(event) {
       alertEl.style.display = 'block';
     }
   } finally {
+    isSubmittingCreateTask = false;
     if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.textContent = originalBtnText;
@@ -2342,14 +2349,17 @@ function closeAdminPayoutModal() {
 }
 window.closeAdminPayoutModal = closeAdminPayoutModal;
 
+let isProcessingPayout = false;
+
 async function executePaystackPayout() {
-  if (!currentPayoutWithdrawalId) return;
+  if (isProcessingPayout || !currentPayoutWithdrawalId) return;
   const wdr = window.TaskEarnDB.getWithdrawals().find(w => w.id === currentPayoutWithdrawalId);
   if (!wdr) {
     closeAdminPayoutModal();
     return;
   }
 
+  isProcessingPayout = true;
   const settings = window.TaskEarnDB.getSettings();
   const secretKey = (settings.paystackSecretKey || '').trim();
   const alertEl = document.getElementById('payoutModalAlert');
@@ -2357,6 +2367,7 @@ async function executePaystackPayout() {
   const btnBypass = document.getElementById('btnManualPayoutBypass');
 
   if (!secretKey) {
+    isProcessingPayout = false;
     if (alertEl) {
       alertEl.className = 'alert alert-error';
       alertEl.innerHTML = '<strong>Missing Secret Key:</strong> Paystack Secret Key is not configured. Please enter your live secret key in Financial Rules.';
@@ -2470,6 +2481,7 @@ async function executePaystackPayout() {
       alertEl.style.display = 'block';
     }
   } finally {
+    isProcessingPayout = false;
     if (btnPaystack) {
       btnPaystack.disabled = false;
       btnPaystack.textContent = 'Authorize & Transfer via Paystack';
@@ -2480,44 +2492,49 @@ async function executePaystackPayout() {
 window.executePaystackPayout = executePaystackPayout;
 
 async function executeManualPayoutBypass() {
-  if (!currentPayoutWithdrawalId) return;
+  if (isProcessingPayout || !currentPayoutWithdrawalId) return;
   const wdr = window.TaskEarnDB.getWithdrawals().find(w => w.id === currentPayoutWithdrawalId);
   if (!wdr) {
     closeAdminPayoutModal();
     return;
   }
 
-  const confirmed = await window.showCustomConfirm(
-    `Bypass Paystack automated debit for ₦${Number(wdr.amountNaira).toLocaleString('en-NG', { minimumFractionDigits: 2 })} to ${wdr.userName}?\n\nChoose this ONLY if you have already transferred the money to the user manually via your personal bank app.`,
-    {
-      title: 'Manual Payout Approval',
-      confirmText: 'Confirm Manual Approval',
-      cancelText: 'Cancel'
+  isProcessingPayout = true;
+  try {
+    const confirmed = await window.showCustomConfirm(
+      `Bypass Paystack automated debit for ₦${Number(wdr.amountNaira).toLocaleString('en-NG', { minimumFractionDigits: 2 })} to ${wdr.userName}?\n\nChoose this ONLY if you have already transferred the money to the user manually via your personal bank app.`,
+      {
+        title: 'Manual Payout Approval',
+        confirmText: 'Confirm Manual Approval',
+        cancelText: 'Cancel'
+      }
+    );
+
+    if (!confirmed) return;
+
+    const transferInfo = {
+      gateway: 'Manual Transfer (Bypass)',
+      status: 'manual_settled',
+      transferredAt: new Date().toISOString()
+    };
+
+    window.TaskEarnDB.reviewWithdrawal(wdr.id, 'approved', '', transferInfo);
+    if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
+      await window.TaskEarnDB.pushToCloud();
     }
-  );
 
-  if (!confirmed) return;
+    closeAdminPayoutModal();
+    renderWithdrawalsQueue();
+    renderOverviewStats();
+    updateAdminTabIndicators();
 
-  const transferInfo = {
-    gateway: 'Manual Transfer (Bypass)',
-    status: 'manual_settled',
-    transferredAt: new Date().toISOString()
-  };
-
-  window.TaskEarnDB.reviewWithdrawal(wdr.id, 'approved', '', transferInfo);
-  if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
-    await window.TaskEarnDB.pushToCloud();
+    await window.showCustomAlert(
+      `Withdrawal of ₦${Number(wdr.amountNaira).toLocaleString('en-NG', { minimumFractionDigits: 2 })} for ${wdr.userName} marked as Approved (Manual).`,
+      { title: 'Payout Approved', type: 'success' }
+    );
+  } finally {
+    isProcessingPayout = false;
   }
-
-  closeAdminPayoutModal();
-  renderWithdrawalsQueue();
-  renderOverviewStats();
-  updateAdminTabIndicators();
-
-  await window.showCustomAlert(
-    `Withdrawal of ₦${Number(wdr.amountNaira).toLocaleString('en-NG', { minimumFractionDigits: 2 })} for ${wdr.userName} marked as Approved (Manual).`,
-    { title: 'Payout Approved', type: 'success' }
-  );
 }
 window.executeManualPayoutBypass = executeManualPayoutBypass;
 
@@ -2864,8 +2881,12 @@ function clearAdminChatImagePreview() {
   document.getElementById('admChatImagePreviewContainer').style.display = 'none';
 }
 
+let isSendingAdminReply = false;
+
 async function handleSendAdminReply(event) {
   event.preventDefault();
+  if (isSendingAdminReply) return;
+
   if (!selectedUserForChat) {
     await window.showCustomAlert('Please select a user conversation first.', {
       title: 'Conversation Required',
@@ -2875,21 +2896,33 @@ async function handleSendAdminReply(event) {
   }
 
   const input = document.getElementById('admChatTextInput');
-  const text = input.value.trim();
-  if (!text && !tempAdminChatImageData) return;
+  const text = (input?.value || '').trim();
+  const image = tempAdminChatImageData;
+  if (!text && !image) return;
 
-  window.TaskEarnDB.sendMessage({
-    userId: selectedUserForChat.id,
-    sender: 'admin',
-    text,
-    image: tempAdminChatImageData
-  });
+  isSendingAdminReply = true;
+  const sendBtn = event.target.querySelector('button[type="submit"]');
+  if (sendBtn) sendBtn.disabled = true;
 
-  input.value = '';
-  clearAdminChatImagePreview();
-  renderAdminChatMessages();
-  renderAdminConversationList();
-  updateAdminTabIndicators();
+  try {
+    window.TaskEarnDB.sendMessage({
+      userId: selectedUserForChat.id,
+      sender: 'admin',
+      text,
+      image
+    });
+
+    if (input) input.value = '';
+    clearAdminChatImagePreview();
+    renderAdminChatMessages();
+    renderAdminConversationList();
+    updateAdminTabIndicators();
+  } finally {
+    setTimeout(() => {
+      isSendingAdminReply = false;
+      if (sendBtn) sendBtn.disabled = false;
+    }, 600);
+  }
 }
 
 function exportDatabaseJson() {
