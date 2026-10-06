@@ -61,15 +61,17 @@ class DataStore {
   }
 
   init() {
-    // One-time purge of any previously loaded ready-made dummy data
-    if (!localStorage.getItem('taskearn_clean_state_v1')) {
+    // One-time factory reset to wipe all existing data and start completely fresh
+    if (!localStorage.getItem('taskearn_factory_reset_v2')) {
       localStorage.removeItem(STORAGE_KEYS.TASKS);
       localStorage.removeItem(STORAGE_KEYS.USERS);
       localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
       localStorage.removeItem(STORAGE_KEYS.WITHDRAWALS);
+      localStorage.removeItem(STORAGE_KEYS.PAYMENTS);
       localStorage.removeItem(STORAGE_KEYS.MESSAGES);
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-      localStorage.setItem('taskearn_clean_state_v1', 'true');
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
+      localStorage.setItem('taskearn_factory_reset_v2', 'true');
     }
 
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
@@ -381,78 +383,73 @@ class DataStore {
           const remoteHasUsers = Array.isArray(record.users) && record.users.length > 0;
           const remoteHasTasks = Array.isArray(record.tasks) && record.tasks.length > 0;
 
-          // If remote is newly initialized & empty, but local has existing accounts or tasks, upload local to remote
-          if (!remoteHasUsers && !remoteHasTasks && (localUsers.length > 0 || localTasks.length > 0)) {
-            await this.pushToCloud();
-          } else {
-            // Check if remote data actually differs from local storage to prevent unnecessary UI re-rendering glitches
-            const currentUsersStr = localStorage.getItem(STORAGE_KEYS.USERS) || '[]';
-            const currentTasksStr = localStorage.getItem(STORAGE_KEYS.TASKS) || '[]';
-            const currentSubsStr = localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '[]';
-            const currentWdrStr = localStorage.getItem(STORAGE_KEYS.WITHDRAWALS) || '[]';
-            const currentPayStr = localStorage.getItem(STORAGE_KEYS.PAYMENTS) || '[]';
-            const currentMsgStr = localStorage.getItem(STORAGE_KEYS.MESSAGES) || '[]';
-            const currentSettingsStr = localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}';
+          // Check if remote data actually differs from local storage to prevent unnecessary UI re-rendering glitches
+          const currentUsersStr = localStorage.getItem(STORAGE_KEYS.USERS) || '[]';
+          const currentTasksStr = localStorage.getItem(STORAGE_KEYS.TASKS) || '[]';
+          const currentSubsStr = localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '[]';
+          const currentWdrStr = localStorage.getItem(STORAGE_KEYS.WITHDRAWALS) || '[]';
+          const currentPayStr = localStorage.getItem(STORAGE_KEYS.PAYMENTS) || '[]';
+          const currentMsgStr = localStorage.getItem(STORAGE_KEYS.MESSAGES) || '[]';
+          const currentSettingsStr = localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}';
 
-            const newUsersStr = Array.isArray(record.users) ? JSON.stringify(record.users) : currentUsersStr;
-            const newTasksStr = Array.isArray(record.tasks) ? JSON.stringify(record.tasks) : currentTasksStr;
-            const newSubsStr = Array.isArray(record.submissions) ? JSON.stringify(record.submissions) : currentSubsStr;
-            const newWdrStr = Array.isArray(record.withdrawals) ? JSON.stringify(record.withdrawals) : currentWdrStr;
-            const newPayStr = Array.isArray(record.payments) ? JSON.stringify(record.payments) : currentPayStr;
-            const newMsgStr = Array.isArray(record.messages) ? JSON.stringify(record.messages) : currentMsgStr;
-            const newSettingsStr = record.settings && typeof record.settings === 'object' 
-              ? JSON.stringify({ ...this.getSettings(), ...record.settings }) 
-              : currentSettingsStr;
+          const newUsersStr = Array.isArray(record.users) ? JSON.stringify(record.users) : currentUsersStr;
+          const newTasksStr = Array.isArray(record.tasks) ? JSON.stringify(record.tasks) : currentTasksStr;
+          const newSubsStr = Array.isArray(record.submissions) ? JSON.stringify(record.submissions) : currentSubsStr;
+          const newWdrStr = Array.isArray(record.withdrawals) ? JSON.stringify(record.withdrawals) : currentWdrStr;
+          const newPayStr = Array.isArray(record.payments) ? JSON.stringify(record.payments) : currentPayStr;
+          const newMsgStr = Array.isArray(record.messages) ? JSON.stringify(record.messages) : currentMsgStr;
+          const newSettingsStr = record.settings && typeof record.settings === 'object' 
+            ? JSON.stringify({ ...this.getSettings(), ...record.settings }) 
+            : currentSettingsStr;
 
-            const changedKeys = [];
-            if (newUsersStr !== currentUsersStr) {
-              localStorage.setItem(STORAGE_KEYS.USERS, newUsersStr);
-              changedKeys.push('users');
-            }
-            if (newTasksStr !== currentTasksStr) {
-              localStorage.setItem(STORAGE_KEYS.TASKS, newTasksStr);
-              changedKeys.push('tasks');
-            }
-            if (newSubsStr !== currentSubsStr) {
-              localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, newSubsStr);
-              changedKeys.push('submissions');
-            }
-            if (newWdrStr !== currentWdrStr) {
-              localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, newWdrStr);
-              changedKeys.push('withdrawals');
-            }
-            if (newPayStr !== currentPayStr) {
-              localStorage.setItem(STORAGE_KEYS.PAYMENTS, newPayStr);
-              changedKeys.push('payments');
-            }
-            if (newMsgStr !== currentMsgStr) {
-              localStorage.setItem(STORAGE_KEYS.MESSAGES, newMsgStr);
-              changedKeys.push('messages');
-            }
-            if (newSettingsStr !== currentSettingsStr) {
-              localStorage.setItem(STORAGE_KEYS.SETTINGS, newSettingsStr);
-              changedKeys.push('settings');
-            }
-
-            // Refresh current active user session if applicable
-            const currentUser = this.getCurrentUser();
-            if (currentUser && Array.isArray(record.users)) {
-              const updatedProfile = record.users.find(u => u.id === currentUser.id);
-              if (updatedProfile && JSON.stringify(updatedProfile) !== JSON.stringify(currentUser)) {
-                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
-              }
-            }
-
-            this._cloudStatus.connected = true;
-            this._cloudStatus.lastSync = new Date().toISOString();
-            this._cloudStatus.error = null;
-
-            // Only trigger sync notifications if there are actual data changes or forced
-            if (changedKeys.length > 0 || force) {
-              this._notifySync('pull', { record, changedKeys });
-            }
-            return record;
+          const changedKeys = [];
+          if (newUsersStr !== currentUsersStr) {
+            localStorage.setItem(STORAGE_KEYS.USERS, newUsersStr);
+            changedKeys.push('users');
           }
+          if (newTasksStr !== currentTasksStr) {
+            localStorage.setItem(STORAGE_KEYS.TASKS, newTasksStr);
+            changedKeys.push('tasks');
+          }
+          if (newSubsStr !== currentSubsStr) {
+            localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, newSubsStr);
+            changedKeys.push('submissions');
+          }
+          if (newWdrStr !== currentWdrStr) {
+            localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, newWdrStr);
+            changedKeys.push('withdrawals');
+          }
+          if (newPayStr !== currentPayStr) {
+            localStorage.setItem(STORAGE_KEYS.PAYMENTS, newPayStr);
+            changedKeys.push('payments');
+          }
+          if (newMsgStr !== currentMsgStr) {
+            localStorage.setItem(STORAGE_KEYS.MESSAGES, newMsgStr);
+            changedKeys.push('messages');
+          }
+          if (newSettingsStr !== currentSettingsStr) {
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, newSettingsStr);
+            changedKeys.push('settings');
+          }
+
+          // Refresh current active user session if applicable
+          const currentUser = this.getCurrentUser();
+          if (currentUser && Array.isArray(record.users)) {
+            const updatedProfile = record.users.find(u => u.id === currentUser.id);
+            if (updatedProfile && JSON.stringify(updatedProfile) !== JSON.stringify(currentUser)) {
+              localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
+            }
+          }
+
+          this._cloudStatus.connected = true;
+          this._cloudStatus.lastSync = new Date().toISOString();
+          this._cloudStatus.error = null;
+
+          // Only trigger sync notifications if there are actual data changes or forced
+          if (changedKeys.length > 0 || force) {
+            this._notifySync('pull', { record, changedKeys });
+          }
+          return record;
         }
         return null;
       } catch (err) {
