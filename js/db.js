@@ -66,7 +66,7 @@ class DataStore {
 
   init() {
     // One-time factory reset to wipe all existing data and start completely fresh
-    if (!localStorage.getItem('taskearn_factory_reset_v3')) {
+    if (!localStorage.getItem('taskearn_factory_reset_v4')) {
       localStorage.removeItem(STORAGE_KEYS.TASKS);
       localStorage.removeItem(STORAGE_KEYS.USERS);
       localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
@@ -75,7 +75,7 @@ class DataStore {
       localStorage.removeItem(STORAGE_KEYS.MESSAGES);
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-      localStorage.setItem('taskearn_factory_reset_v3', 'true');
+      localStorage.setItem('taskearn_factory_reset_v4', 'true');
     }
 
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
