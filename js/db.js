@@ -65,7 +65,19 @@ class DataStore {
   }
 
   init() {
-    // Preserve all existing collections safely across all devices
+    // One-time cache reset to force mobile browsers to clear stale empty local cache and pull fresh cloud data
+    if (!localStorage.getItem('taskearn_cloud_clean_v6')) {
+      try {
+        localStorage.removeItem(STORAGE_KEYS.USERS);
+        localStorage.removeItem(STORAGE_KEYS.PAYMENTS);
+        localStorage.removeItem(STORAGE_KEYS.TASKS);
+        localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
+        localStorage.removeItem(STORAGE_KEYS.WITHDRAWALS);
+        localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+        localStorage.setItem('taskearn_cloud_clean_v6', 'true');
+      } catch (e) {}
+    }
+
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
     }
@@ -180,13 +192,6 @@ class DataStore {
   }
 
   async _fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      this._cloudStatus.connected = false;
-      this._cloudStatus.isOffline = true;
-      this._notifyNetworkStatus(false, 'You are currently offline. Changes are saved safely on your device.');
-      throw new Error('Device is offline.');
-    }
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -284,7 +289,7 @@ class DataStore {
         // Pre-fetch latest remote state to merge before pushing so concurrent clients don't overwrite each other
         let remoteRecord = null;
         try {
-          const fetchRes = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at&t=${Date.now()}`, {
+          const fetchRes = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at`, {
             method: 'GET',
             headers: {
               'apikey': SUPABASE_CONFIG.ANON_KEY,
@@ -496,7 +501,7 @@ class DataStore {
     this._pullPromise = (async () => {
       this._isPulling = true;
       try {
-        const res = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at&t=${Date.now()}`, {
+        const res = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at`, {
           method: 'GET',
           headers: {
             'apikey': SUPABASE_CONFIG.ANON_KEY,
