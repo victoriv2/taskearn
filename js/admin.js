@@ -147,6 +147,13 @@ function initAdminDashboard() {
       }
     });
   }
+
+  // Automatic real-time polling to keep overview stats, user directory, and pay-ins updated
+  setInterval(() => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible' && window.TaskEarnDB && window.TaskEarnDB.isAdminLoggedIn && window.TaskEarnDB.isAdminLoggedIn()) {
+      refreshAdminDataViews();
+    }
+  }, 3500);
 }
 
 const ADMIN_TABS = ['overview', 'tasks', 'create-task', 'financial', 'more'];
@@ -262,6 +269,7 @@ async function handleAdminLoginSubmit(event) {
     }
     window.TaskEarnDB.loginAdmin(email, pass);
     checkAdminAuth();
+    refreshAdminDataViews();
   } catch (err) {
     if (window.showCustomAlert) {
       window.showCustomAlert(err.message, {

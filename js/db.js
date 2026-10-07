@@ -93,14 +93,14 @@ class DataStore {
 
   setupCloudSync() {
     // Pull immediately on startup
-    this.pullFromCloud();
+    this.pullFromCloud(true).catch(() => {});
 
     if (typeof window !== 'undefined') {
       // Listen to browser network connectivity changes
       window.addEventListener('online', () => {
         this._cloudStatus.isOffline = false;
         this._notifyNetworkStatus(true, 'Connection restored. Cloud synchronizing...');
-        this.syncNow().catch(() => {});
+        this.pullFromCloud(true).catch(() => {});
       });
 
       window.addEventListener('offline', () => {
@@ -108,20 +108,20 @@ class DataStore {
         this._notifyNetworkStatus(false, 'You are currently offline. Changes are saved safely on your device.');
       });
 
-      // Real-time background sync polling: polls every 15s when active tab is visible
+      // Real-time background sync polling: polls every 3.5s when active tab is visible
       setInterval(() => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
           this.pullFromCloud();
         }
-      }, 15000);
+      }, 3500);
 
-      // Pull immediately when tab regains focus or becomes visible (throttled to at most once every 8 seconds)
-      let lastFocusPull = Date.now();
+      // Pull immediately when tab regains focus or becomes visible
+      let lastFocusPull = 0;
       const throttledFocusPull = () => {
         const now = Date.now();
-        if (now - lastFocusPull >= 8000) {
+        if (now - lastFocusPull >= 1500) {
           lastFocusPull = now;
-          this.pullFromCloud();
+          this.pullFromCloud(true).catch(() => {});
         }
       };
 
@@ -298,7 +298,7 @@ class DataStore {
             remoteRecord = Array.isArray(fetchJson) && fetchJson.length > 0 ? fetchJson[0].data : null;
           }
         } catch (fetchErr) {
-          // If remote read fails, continue with local data
+          // Network error or timeout fetching remote state
         }
 
         const localUsers = this._get(STORAGE_KEYS.USERS);
@@ -309,16 +309,40 @@ class DataStore {
         const localMsg = this._get(STORAGE_KEYS.MESSAGES);
         const localSettings = this.getSettings();
 
+        // CRITICAL DATA PRESERVATION GUARD:
+        // If remote state could not be verified and local storage has 0 users, NEVER push!
+        if (!remoteRecord && localUsers.length === 0) {
+          console.warn('Aborting pushToCloud: Remote state unverified and local user collection is empty. Preventing cloud overwrite.');
+          return false;
+        }
+
+        const remoteUsers = Array.isArray(remoteRecord?.users) ? remoteRecord.users : [];
+        const remoteTasks = Array.isArray(remoteRecord?.tasks) ? remoteRecord.tasks : [];
+        const remoteSubs = Array.isArray(remoteRecord?.submissions) ? remoteRecord.submissions : [];
+        const remoteWdr = Array.isArray(remoteRecord?.withdrawals) ? remoteRecord.withdrawals : [];
+        const remotePay = Array.isArray(remoteRecord?.payments) ? remoteRecord.payments : [];
+        const remoteMsg = Array.isArray(remoteRecord?.messages) ? remoteRecord.messages : [];
+
         // Merge local with remote collections to preserve both
-        const mergedUsers = this._mergeUsers(localUsers, remoteRecord?.users);
-        const mergedTasks = this._mergeCollectionsById(localTasks, remoteRecord?.tasks);
-        const mergedSubs = this._mergeCollectionsById(localSubs, remoteRecord?.submissions);
-        const mergedWdr = this._mergeCollectionsById(localWdr, remoteRecord?.withdrawals);
-        const mergedPay = this._mergeCollectionsById(localPay, remoteRecord?.payments);
-        const mergedMsg = this._mergeCollectionsById(localMsg, remoteRecord?.messages);
+        const mergedUsers = this._mergeUsers(localUsers, remoteUsers);
+        const mergedTasks = this._mergeCollectionsById(localTasks, remoteTasks);
+        const mergedSubs = this._mergeCollectionsById(localSubs, remoteSubs);
+        const mergedWdr = this._mergeCollectionsById(localWdr, remoteWdr);
+        const mergedPay = this._mergeCollectionsById(localPay, remotePay);
+        const mergedMsg = this._mergeCollectionsById(localMsg, remoteMsg);
         const mergedSettings = remoteRecord?.settings && typeof remoteRecord.settings === 'object'
           ? { ...localSettings, ...remoteRecord.settings }
           : localSettings;
+
+        // Anti-shrink safety guard: Merged collections must never shrink compared to verified remote data
+        if (remoteUsers.length > 0 && mergedUsers.length < remoteUsers.length) {
+          console.error('Safety violation: merged users count is less than remote users count. Aborting push.');
+          return false;
+        }
+        if (remotePay.length > 0 && mergedPay.length < remotePay.length) {
+          console.error('Safety violation: merged payments count is less than remote payments count. Aborting push.');
+          return false;
+        }
 
         // Save merged state back locally
         localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
@@ -472,32 +496,6 @@ class DataStore {
     this._pullPromise = (async () => {
       this._isPulling = true;
       try {
-        // Step 1: Lightweight HEAD check on updated_at to avoid downloading full state if nothing changed
-        if (!force && this._lastCloudUpdatedAt) {
-          try {
-            const headRes = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=updated_at&t=${Date.now()}`, {
-              method: 'GET',
-              headers: {
-                'apikey': SUPABASE_CONFIG.ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
-              }
-            }, 6000);
-            if (headRes.ok) {
-              const headJson = await headRes.json();
-              const remoteUpdatedAt = Array.isArray(headJson) && headJson.length > 0 ? headJson[0].updated_at : null;
-              if (remoteUpdatedAt && remoteUpdatedAt === this._lastCloudUpdatedAt) {
-                // Cloud has not changed, skip full data transfer to conserve bandwidth & free-tier quota
-                this._cloudStatus.connected = true;
-                return null;
-              }
-            }
-          } catch (headErr) {
-            // Fall through to full fetch if lightweight check fails
-          }
-        }
-
         const res = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at&t=${Date.now()}`, {
           method: 'GET',
           headers: {
@@ -948,6 +946,7 @@ class DataStore {
     users.push(newUser);
     this._set(STORAGE_KEYS.USERS, users);
     this.setCurrentUser(newUser);
+    this.pushToCloud().catch(() => {});
     return newUser;
   }
 
@@ -1002,6 +1001,7 @@ class DataStore {
     users[userIndex] = user;
     this._set(STORAGE_KEYS.USERS, users);
     this.setCurrentUser(user);
+    this.pushToCloud().catch(() => {});
     return user;
   }
 
