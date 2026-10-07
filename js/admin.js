@@ -127,7 +127,9 @@ function initAdminDashboard() {
   checkAdminAuth();
 
   if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud && window.TaskEarnDB.isAdminLoggedIn()) {
-    window.TaskEarnDB.pullFromCloud(true).catch(() => {});
+    window.TaskEarnDB.pullFromCloud(true).then(() => {
+      refreshAdminDataViews();
+    }).catch(() => {});
   }
 
   if (window.TaskEarnDB && window.TaskEarnDB.onSync) {
@@ -3101,6 +3103,9 @@ async function manualCloudSync() {
   }
   try {
     await window.TaskEarnDB.syncNow();
+    if (typeof refreshAdminDataViews === 'function') {
+      refreshAdminDataViews();
+    }
     if (badge) {
       badge.textContent = 'Supabase Connected';
       badge.className = 'badge badge-approved';

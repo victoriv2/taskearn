@@ -65,19 +65,7 @@ class DataStore {
   }
 
   init() {
-    // One-time factory reset to wipe all existing data and start completely fresh
-    if (!localStorage.getItem('taskearn_factory_reset_v4')) {
-      localStorage.removeItem(STORAGE_KEYS.TASKS);
-      localStorage.removeItem(STORAGE_KEYS.USERS);
-      localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
-      localStorage.removeItem(STORAGE_KEYS.WITHDRAWALS);
-      localStorage.removeItem(STORAGE_KEYS.PAYMENTS);
-      localStorage.removeItem(STORAGE_KEYS.MESSAGES);
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-      localStorage.setItem('taskearn_factory_reset_v4', 'true');
-    }
-
+    // Preserve all existing collections safely across all devices
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
     }
@@ -293,14 +281,62 @@ class DataStore {
     this._pushPromise = (async () => {
       this._isPushing = true;
       try {
+        // Pre-fetch latest remote state to merge before pushing so concurrent clients don't overwrite each other
+        let remoteRecord = null;
+        try {
+          const fetchRes = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state?id=eq.${SUPABASE_CONFIG.DOC_ID}&select=data,updated_at&t=${Date.now()}`, {
+            method: 'GET',
+            headers: {
+              'apikey': SUPABASE_CONFIG.ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          }, 6000);
+          if (fetchRes.ok) {
+            const fetchJson = await fetchRes.json();
+            remoteRecord = Array.isArray(fetchJson) && fetchJson.length > 0 ? fetchJson[0].data : null;
+          }
+        } catch (fetchErr) {
+          // If remote read fails, continue with local data
+        }
+
+        const localUsers = this._get(STORAGE_KEYS.USERS);
+        const localTasks = this._get(STORAGE_KEYS.TASKS);
+        const localSubs = this._get(STORAGE_KEYS.SUBMISSIONS);
+        const localWdr = this._get(STORAGE_KEYS.WITHDRAWALS);
+        const localPay = this._get(STORAGE_KEYS.PAYMENTS);
+        const localMsg = this._get(STORAGE_KEYS.MESSAGES);
+        const localSettings = this.getSettings();
+
+        // Merge local with remote collections to preserve both
+        const mergedUsers = this._mergeUsers(localUsers, remoteRecord?.users);
+        const mergedTasks = this._mergeCollectionsById(localTasks, remoteRecord?.tasks);
+        const mergedSubs = this._mergeCollectionsById(localSubs, remoteRecord?.submissions);
+        const mergedWdr = this._mergeCollectionsById(localWdr, remoteRecord?.withdrawals);
+        const mergedPay = this._mergeCollectionsById(localPay, remoteRecord?.payments);
+        const mergedMsg = this._mergeCollectionsById(localMsg, remoteRecord?.messages);
+        const mergedSettings = remoteRecord?.settings && typeof remoteRecord.settings === 'object'
+          ? { ...localSettings, ...remoteRecord.settings }
+          : localSettings;
+
+        // Save merged state back locally
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
+        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(mergedTasks));
+        localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(mergedSubs));
+        localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify(mergedWdr));
+        localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(mergedPay));
+        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(mergedMsg));
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(mergedSettings));
+
         const payload = {
-          settings: this.getSettings(),
-          users: this._get(STORAGE_KEYS.USERS),
-          tasks: this._get(STORAGE_KEYS.TASKS),
-          submissions: this._get(STORAGE_KEYS.SUBMISSIONS),
-          withdrawals: this._get(STORAGE_KEYS.WITHDRAWALS),
-          payments: this._get(STORAGE_KEYS.PAYMENTS),
-          messages: this._get(STORAGE_KEYS.MESSAGES)
+          settings: mergedSettings,
+          users: mergedUsers,
+          tasks: mergedTasks,
+          submissions: mergedSubs,
+          withdrawals: mergedWdr,
+          payments: mergedPay,
+          messages: mergedMsg
         };
 
         const res = await this._fetchWithTimeout(`${SUPABASE_CONFIG.URL}/rest/v1/app_state`, {
@@ -339,6 +375,77 @@ class DataStore {
     })();
 
     return this._pushPromise;
+  }
+
+  // --- Safe Merge Helpers ---
+  _mergeCollectionsById(localList = [], remoteList = []) {
+    const listA = Array.isArray(localList) ? localList : [];
+    const listB = Array.isArray(remoteList) ? remoteList : [];
+    const map = new Map();
+
+    listB.forEach(item => {
+      if (item && item.id) map.set(item.id, item);
+    });
+
+    listA.forEach(item => {
+      if (item && item.id) {
+        if (!map.has(item.id)) {
+          map.set(item.id, item);
+        } else {
+          // Keep the one with newer updatedAt or fallback to item
+          const remote = map.get(item.id);
+          const localTime = new Date(item.updatedAt || item.createdAt || item.submittedAt || 0).getTime();
+          const remoteTime = new Date(remote.updatedAt || remote.createdAt || remote.submittedAt || 0).getTime();
+          if (localTime >= remoteTime) {
+            map.set(item.id, item);
+          }
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }
+
+  _mergeUsers(localUsers = [], remoteUsers = []) {
+    const listA = Array.isArray(localUsers) ? localUsers : [];
+    const listB = Array.isArray(remoteUsers) ? remoteUsers : [];
+    const map = new Map();
+
+    listB.forEach(u => {
+      if (u && u.id) map.set(u.id, u);
+    });
+
+    listA.forEach(u => {
+      if (u && u.id) {
+        if (!map.has(u.id)) {
+          map.set(u.id, u);
+        } else {
+          const remote = map.get(u.id);
+          // If local is verified and remote is not, prefer local
+          const isVerified = Boolean(u.isVerified || remote.isVerified);
+          const verificationRef = u.verificationRef || remote.verificationRef || null;
+          const verificationPaidAt = u.verificationPaidAt || remote.verificationPaidAt || null;
+          const taskBal = Math.max(Number(u.taskPointsBalance) || 0, Number(remote.taskPointsBalance) || 0);
+          const refBal = Math.max(Number(u.referralPointsBalance) || 0, Number(remote.referralPointsBalance) || 0);
+          const totalPts = taskBal + refBal;
+          const totalEarned = Math.max(Number(u.totalEarnedPoints) || 0, Number(remote.totalEarnedPoints) || 0);
+
+          map.set(u.id, {
+            ...remote,
+            ...u,
+            isVerified,
+            verificationRef,
+            verificationPaidAt,
+            taskPointsBalance: taskBal,
+            referralPointsBalance: refBal,
+            pointsBalance: totalPts,
+            totalEarnedPoints: totalEarned
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values());
   }
 
   async pullFromCloud(force = false) {
@@ -415,11 +522,23 @@ class DataStore {
         if (record && typeof record === 'object') {
           const localUsers = this._get(STORAGE_KEYS.USERS);
           const localTasks = this._get(STORAGE_KEYS.TASKS);
+          const localSubs = this._get(STORAGE_KEYS.SUBMISSIONS);
+          const localWdr = this._get(STORAGE_KEYS.WITHDRAWALS);
+          const localPay = this._get(STORAGE_KEYS.PAYMENTS);
+          const localMsg = this._get(STORAGE_KEYS.MESSAGES);
+          const localSettings = this.getSettings();
 
-          const remoteHasUsers = Array.isArray(record.users) && record.users.length > 0;
-          const remoteHasTasks = Array.isArray(record.tasks) && record.tasks.length > 0;
+          // True union merge: Combine remote and local records so neither local registrations nor cloud users are ever lost
+          const mergedUsers = this._mergeUsers(localUsers, record.users);
+          const mergedTasks = this._mergeCollectionsById(localTasks, record.tasks);
+          const mergedSubs = this._mergeCollectionsById(localSubs, record.submissions);
+          const mergedWdr = this._mergeCollectionsById(localWdr, record.withdrawals);
+          const mergedPay = this._mergeCollectionsById(localPay, record.payments);
+          const mergedMsg = this._mergeCollectionsById(localMsg, record.messages);
+          const mergedSettings = record.settings && typeof record.settings === 'object'
+            ? { ...localSettings, ...record.settings }
+            : localSettings;
 
-          // Check if remote data actually differs from local storage to prevent unnecessary UI re-rendering glitches
           const currentUsersStr = localStorage.getItem(STORAGE_KEYS.USERS) || '[]';
           const currentTasksStr = localStorage.getItem(STORAGE_KEYS.TASKS) || '[]';
           const currentSubsStr = localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '[]';
@@ -428,15 +547,13 @@ class DataStore {
           const currentMsgStr = localStorage.getItem(STORAGE_KEYS.MESSAGES) || '[]';
           const currentSettingsStr = localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}';
 
-          const newUsersStr = Array.isArray(record.users) ? JSON.stringify(record.users) : currentUsersStr;
-          const newTasksStr = Array.isArray(record.tasks) ? JSON.stringify(record.tasks) : currentTasksStr;
-          const newSubsStr = Array.isArray(record.submissions) ? JSON.stringify(record.submissions) : currentSubsStr;
-          const newWdrStr = Array.isArray(record.withdrawals) ? JSON.stringify(record.withdrawals) : currentWdrStr;
-          const newPayStr = Array.isArray(record.payments) ? JSON.stringify(record.payments) : currentPayStr;
-          const newMsgStr = Array.isArray(record.messages) ? JSON.stringify(record.messages) : currentMsgStr;
-          const newSettingsStr = record.settings && typeof record.settings === 'object' 
-            ? JSON.stringify({ ...this.getSettings(), ...record.settings }) 
-            : currentSettingsStr;
+          const newUsersStr = JSON.stringify(mergedUsers);
+          const newTasksStr = JSON.stringify(mergedTasks);
+          const newSubsStr = JSON.stringify(mergedSubs);
+          const newWdrStr = JSON.stringify(mergedWdr);
+          const newPayStr = JSON.stringify(mergedPay);
+          const newMsgStr = JSON.stringify(mergedMsg);
+          const newSettingsStr = JSON.stringify(mergedSettings);
 
           const changedKeys = [];
           if (newUsersStr !== currentUsersStr) {
@@ -470,8 +587,8 @@ class DataStore {
 
           // Refresh current active user session if applicable
           const currentUser = this.getCurrentUser();
-          if (currentUser && Array.isArray(record.users)) {
-            const updatedProfile = record.users.find(u => u.id === currentUser.id);
+          if (currentUser && Array.isArray(mergedUsers)) {
+            const updatedProfile = mergedUsers.find(u => u.id === currentUser.id);
             if (updatedProfile && JSON.stringify(updatedProfile) !== JSON.stringify(currentUser)) {
               localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedProfile));
             }
@@ -481,9 +598,17 @@ class DataStore {
           this._cloudStatus.lastSync = new Date().toISOString();
           this._cloudStatus.error = null;
 
+          // If local had unsynced records that cloud didn't have, schedule a push back to keep cloud unified
+          const cloudMissingUsers = mergedUsers.length > (Array.isArray(record.users) ? record.users.length : 0);
+          const cloudMissingPay = mergedPay.length > (Array.isArray(record.payments) ? record.payments.length : 0);
+          const cloudMissingTasks = mergedTasks.length > (Array.isArray(record.tasks) ? record.tasks.length : 0);
+          if (cloudMissingUsers || cloudMissingPay || cloudMissingTasks) {
+            this.scheduleCloudPush(1000);
+          }
+
           // Only trigger sync notifications if there are actual data changes or forced
           if (changedKeys.length > 0 || force) {
-            this._notifySync('pull', { record, changedKeys });
+            this._notifySync('pull', { record: { ...record, users: mergedUsers, payments: mergedPay, tasks: mergedTasks }, changedKeys });
           }
           return record;
         }
