@@ -508,7 +508,17 @@ function updateMoreHubBadges() {
   if (hubInboxBadge) hubInboxBadge.textContent = `${uniqueConvs} Chats`;
 }
 
+function openMorePageWithFilter(pageId, returnTab, filterType) {
+  openMorePage(pageId, returnTab);
+  const filterEl = document.getElementById('admPendingWithdrawalsTypeFilterFull');
+  if (filterEl && filterType) {
+    filterEl.value = filterType;
+  }
+  renderWithdrawalsQueue();
+}
+
 window.openMorePage = openMorePage;
+window.openMorePageWithFilter = openMorePageWithFilter;
 window.closeMorePage = closeMorePage;
 window.updateMoreHubBadges = updateMoreHubBadges;
 
@@ -1964,7 +1974,7 @@ function renderPayInRecords() {
   }
 }
 
-function createPendingWithdrawalRowHtml(w, uObj) {
+function createPendingWithdrawalRowHtml(w, uObj, showSource = true) {
   const isRef = (w.withdrawalType === 'referral');
   return `
     <tr>
@@ -1980,11 +1990,12 @@ function createPendingWithdrawalRowHtml(w, uObj) {
           </div>
         </div>
       </td>
+      ${showSource ? `
       <td>
         <span class="badge ${isRef ? 'badge-approved' : 'badge-active'}" style="font-size: 0.72rem;">
           ${isRef ? 'Referral' : 'Task'}
         </span>
-      </td>
+      </td>` : ''}
       <td><strong>${w.points.toLocaleString()} PTS</strong></td>
       <td><strong style="color: var(--primary-green-dark); font-size: 1.05rem;">₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
       <td>
@@ -2254,61 +2265,66 @@ function renderWithdrawalsQueue() {
   const pending = withdrawals.filter(w => w.status === 'pending');
   const completed = withdrawals.filter(w => w.status !== 'pending');
 
-  const pendingTaskCount = pending.filter(w => (w.withdrawalType || 'task') === 'task').length;
-  const pendingReferralCount = pending.filter(w => w.withdrawalType === 'referral').length;
-
-  const countAllEl = document.getElementById('admFinanceWdrCountAll');
-  const countTaskEl = document.getElementById('admFinanceWdrCountTask');
-  const countRefEl = document.getElementById('admFinanceWdrCountReferral');
-  if (countAllEl) countAllEl.textContent = pending.length;
-  if (countTaskEl) countTaskEl.textContent = pendingTaskCount;
-  if (countRefEl) countRefEl.textContent = pendingReferralCount;
+  const pendingTask = pending.filter(w => (w.withdrawalType || 'task') === 'task');
+  const pendingReferral = pending.filter(w => w.withdrawalType === 'referral');
 
   const pendingBadge = document.getElementById('pendingWithdrawalsBadge');
   if (pendingBadge) {
-    pendingBadge.textContent = `${pending.length} Pending (${pendingTaskCount} Task, ${pendingReferralCount} Ref)`;
+    pendingBadge.textContent = `${pending.length} Pending`;
   }
+
+  const taskBadge = document.getElementById('pendingTaskWithdrawalsBadge');
+  if (taskBadge) taskBadge.textContent = `${pendingTask.length} Pending`;
+
+  const refBadge = document.getElementById('pendingRefWithdrawalsBadge');
+  if (refBadge) refBadge.textContent = `${pendingReferral.length} Pending`;
+
+  const hubTaskBadge = document.getElementById('hubTaskPendingBadge');
+  if (hubTaskBadge) hubTaskBadge.textContent = `${pendingTask.length} Task Pending`;
+
+  const hubRefBadge = document.getElementById('hubRefPendingBadge');
+  if (hubRefBadge) hubRefBadge.textContent = `${pendingReferral.length} Ref Pending`;
 
   const fullPendingBadge = document.getElementById('fullPendingTotalBadge');
   const fullLogsBadge = document.getElementById('fullLogsTotalBadge');
 
   const statPendingCount = document.getElementById('statPendingWithdrawalsCount');
-  if (statPendingCount) statPendingCount.textContent = `${pending.length} pending (${pendingTaskCount} Task, ${pendingReferralCount} Ref)`;
+  if (statPendingCount) statPendingCount.textContent = `${pending.length} pending (${pendingTask.length} Task, ${pendingReferral.length} Ref)`;
 
-  const financePendingBody = document.getElementById('admPendingWithdrawalsBodyFinance') || document.getElementById('admPendingWithdrawalsBody');
-  const fullPendingBody = document.getElementById('admPendingWithdrawalsBodyFull');
-
-  const emptyPendingMsg = `
-    <tr>
-      <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
-        No pending withdrawal requests. All payouts are cleared!
-      </td>
-    </tr>
-  `;
-
-  // Financial preview tab (filtered by activeAdminFinanceWithdrawalFilter)
-  if (financePendingBody) {
-    let financeFiltered = pending;
-    if (activeAdminFinanceWithdrawalFilter === 'task') {
-      financeFiltered = pending.filter(w => (w.withdrawalType || 'task') === 'task');
-    } else if (activeAdminFinanceWithdrawalFilter === 'referral') {
-      financeFiltered = pending.filter(w => w.withdrawalType === 'referral');
-    }
-
-    if (financeFiltered.length === 0) {
-      financePendingBody.innerHTML = `
+  // Dedicated Card 1: Task Withdrawals Preview Table
+  const taskTbody = document.getElementById('admPendingTaskWithdrawalsBodyFinance');
+  if (taskTbody) {
+    if (pendingTask.length === 0) {
+      taskTbody.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
-            ${pending.length === 0 ? 'No pending withdrawal requests. All payouts are cleared!' : `No pending ${activeAdminFinanceWithdrawalFilter} withdrawal requests.`}
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No pending task withdrawal requests. All task payouts are cleared!
           </td>
         </tr>
       `;
     } else {
-      financePendingBody.innerHTML = financeFiltered.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+      taskTbody.innerHTML = pendingTask.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId], false)).join('');
+    }
+  }
+
+  // Dedicated Card 2: Referral Withdrawals Preview Table
+  const refTbody = document.getElementById('admPendingRefWithdrawalsBodyFinance');
+  if (refTbody) {
+    if (pendingReferral.length === 0) {
+      refTbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No pending referral withdrawal requests. All referral payouts are cleared!
+          </td>
+        </tr>
+      `;
+    } else {
+      refTbody.innerHTML = pendingReferral.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId], false)).join('');
     }
   }
 
   // Full pending subpage with search & type filter
+  const fullPendingBody = document.getElementById('admPendingWithdrawalsBodyFull');
   if (fullPendingBody) {
     const pendingSearchInput = document.getElementById('admPendingWithdrawalsSearchInputFull');
     const typeFilterSelect = document.getElementById('admPendingWithdrawalsTypeFilterFull');
@@ -2317,9 +2333,9 @@ function renderWithdrawalsQueue() {
     
     let filteredPending = pending;
     if (selectedType === 'task') {
-      filteredPending = filteredPending.filter(w => (w.withdrawalType || 'task') === 'task');
+      filteredPending = pending.filter(w => (w.withdrawalType || 'task') === 'task');
     } else if (selectedType === 'referral') {
-      filteredPending = filteredPending.filter(w => w.withdrawalType === 'referral');
+      filteredPending = pending.filter(w => w.withdrawalType === 'referral');
     }
 
     if (pendingQuery) {
@@ -2352,7 +2368,7 @@ function renderWithdrawalsQueue() {
         </tr>
       `;
     } else {
-      fullPendingBody.innerHTML = filteredPending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+      fullPendingBody.innerHTML = filteredPending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId], true)).join('');
     }
   }
 

@@ -1302,66 +1302,60 @@ async function handleSaveBankDetails(event) {
   }
 }
 
-window.currentWithdrawalMode = 'task';
-
-function selectWithdrawalMode(mode) {
-  const cleanMode = mode === 'referral' ? 'referral' : 'task';
-  window.currentWithdrawalMode = cleanMode;
-
-  const btnTask = document.getElementById('btnWdrTabTask');
-  const btnRef = document.getElementById('btnWdrTabReferral');
-  const taskBox = document.getElementById('wdrTaskBalBox');
-  const refBox = document.getElementById('wdrRefBalBox');
-  const typeInput = document.getElementById('wdrTypeInput');
-  const activeTitle = document.getElementById('wdrActiveSourceTitle');
-  const activeBadge = document.getElementById('wdrActiveSourceBadge');
-  const submitBtn = document.getElementById('btnSubmitWithdrawal');
-
-  if (typeInput) typeInput.value = cleanMode;
-
-  if (cleanMode === 'referral') {
-    if (btnRef) { btnRef.className = 'btn btn-primary btn-sm'; btnRef.style.fontWeight = '700'; }
-    if (btnTask) { btnTask.className = 'btn btn-secondary btn-sm'; btnTask.style.fontWeight = '600'; }
-    if (refBox) { refBox.style.border = '2px solid var(--primary-green-dark)'; refBox.style.boxShadow = '0 0 0 1px var(--primary-green-dark)'; }
-    if (taskBox) { taskBox.style.border = '1px solid var(--border-color)'; taskBox.style.boxShadow = 'none'; }
-    if (activeTitle) activeTitle.textContent = 'Referral Earnings';
-    if (activeBadge) {
-      activeBadge.textContent = 'Min: ₦1,000';
-      activeBadge.style.background = 'rgba(16, 185, 129, 0.15)';
-      activeBadge.style.color = '#047857';
-    }
-    if (submitBtn) submitBtn.textContent = 'Submit Referral Withdrawal Request (₦1,000 Min)';
-  } else {
-    if (btnTask) { btnTask.className = 'btn btn-primary btn-sm'; btnTask.style.fontWeight = '700'; }
-    if (btnRef) { btnRef.className = 'btn btn-secondary btn-sm'; btnRef.style.fontWeight = '600'; }
-    if (taskBox) { taskBox.style.border = '2px solid var(--primary-blue)'; taskBox.style.boxShadow = '0 0 0 1px var(--primary-blue)'; }
-    if (refBox) { refBox.style.border = '1px solid var(--border-color)'; refBox.style.boxShadow = 'none'; }
-    if (activeTitle) activeTitle.textContent = 'Task Earnings';
-    if (activeBadge) {
-      activeBadge.textContent = 'Min: ₦10,000';
-      activeBadge.style.background = 'rgba(37, 99, 235, 0.12)';
-      activeBadge.style.color = 'var(--primary-blue)';
-    }
-    if (submitBtn) submitBtn.textContent = 'Submit Task Withdrawal Request (₦10,000 Min)';
-  }
+function calculateTaskWithdrawalNaira() {
+  const points = Number(document.getElementById('wdrTaskPointsInput')?.value) || 0;
+  const settings = window.TaskEarnDB.getSettings();
+  const rate = Number(settings.pointRateNaira) || 1.0;
+  const naira = points * rate;
+  const el = document.getElementById('wdrTaskCalculatedNaira');
+  if (el) el.textContent = `Estimated Payout: ₦${naira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
-window.selectWithdrawalMode = selectWithdrawalMode;
+window.calculateTaskWithdrawalNaira = calculateTaskWithdrawalNaira;
 
-function setWithdrawAllPoints() {
+function calculateRefWithdrawalNaira() {
+  const points = Number(document.getElementById('wdrRefPointsInput')?.value) || 0;
+  const settings = window.TaskEarnDB.getSettings();
+  const rate = Number(settings.pointRateNaira) || 1.0;
+  const naira = points * rate;
+  const el = document.getElementById('wdrRefCalculatedNaira');
+  if (el) el.textContent = `Estimated Payout: ₦${naira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+}
+window.calculateRefWithdrawalNaira = calculateRefWithdrawalNaira;
+
+function setWithdrawAllTaskPoints() {
   if (!activeUser) return;
   activeUser = window.TaskEarnDB.getCurrentUser();
-  const mode = window.currentWithdrawalMode || 'task';
-  const available = mode === 'referral' 
-    ? (Number(activeUser.referralPointsBalance) || 0)
-    : (Number(activeUser.taskPointsBalance) || 0);
-
-  const input = document.getElementById('wdrPointsInput');
+  const available = Number(activeUser.taskPointsBalance) || 0;
+  const input = document.getElementById('wdrTaskPointsInput');
   if (input) {
     input.value = available > 0 ? available : '';
-    calculateWithdrawalNaira();
+    calculateTaskWithdrawalNaira();
   }
 }
-window.setWithdrawAllPoints = setWithdrawAllPoints;
+window.setWithdrawAllTaskPoints = setWithdrawAllTaskPoints;
+
+function setWithdrawAllRefPoints() {
+  if (!activeUser) return;
+  activeUser = window.TaskEarnDB.getCurrentUser();
+  const available = Number(activeUser.referralPointsBalance) || 0;
+  const input = document.getElementById('wdrRefPointsInput');
+  if (input) {
+    input.value = available > 0 ? available : '';
+    calculateRefWithdrawalNaira();
+  }
+}
+window.setWithdrawAllRefPoints = setWithdrawAllRefPoints;
+
+// Legacy fallbacks if called
+window.calculateWithdrawalNaira = calculateTaskWithdrawalNaira;
+window.setWithdrawAllPoints = setWithdrawAllTaskPoints;
+window.selectWithdrawalMode = function(mode) {
+  const targetId = mode === 'referral' ? 'refWithdrawCard' : 'taskWithdrawCard';
+  const el = document.getElementById(targetId);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};
 
 function renderWithdrawalsTab() {
   if (!activeUser) return;
@@ -1376,32 +1370,20 @@ function renderWithdrawalsTab() {
   const taskNaira = taskPts * rate;
   const refNaira = refPts * rate;
 
-  const wdrRateBadge = document.getElementById('wdrRateBadge');
-  if (wdrRateBadge) wdrRateBadge.textContent = `1 Point = ₦${rate.toFixed(2)}`;
-
   // Dual balances
   const wdrTaskPtsEl = document.getElementById('wdrTaskPointsAvailable');
   const wdrTaskNairaEl = document.getElementById('wdrTaskNairaAvailable');
   const wdrTaskMinNotice = document.getElementById('wdrTaskMinNotice');
   if (wdrTaskPtsEl) wdrTaskPtsEl.textContent = taskPts.toLocaleString();
   if (wdrTaskNairaEl) wdrTaskNairaEl.textContent = `₦${taskNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-  if (wdrTaskMinNotice) wdrTaskMinNotice.textContent = `Min withdrawal: ₦${minTask.toLocaleString()} (${Math.ceil(minTask / rate).toLocaleString()} PTS)`;
+  if (wdrTaskMinNotice) wdrTaskMinNotice.textContent = `Minimum withdrawal threshold: ₦${minTask.toLocaleString()} (${Math.ceil(minTask / rate).toLocaleString()} PTS)`;
 
   const wdrRefPtsEl = document.getElementById('wdrRefPointsAvailable');
   const wdrRefNairaEl = document.getElementById('wdrRefNairaAvailable');
   const wdrRefMinNotice = document.getElementById('wdrRefMinNotice');
   if (wdrRefPtsEl) wdrRefPtsEl.textContent = refPts.toLocaleString();
   if (wdrRefNairaEl) wdrRefNairaEl.textContent = `₦${refNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-  if (wdrRefMinNotice) wdrRefMinNotice.textContent = `Min withdrawal: ₦${minRef.toLocaleString()} (${Math.ceil(minRef / rate).toLocaleString()} PTS)`;
-
-  // Legacy element sync if present
-  const wdrPointsAvailable = document.getElementById('wdrPointsAvailable');
-  const wdrNairaAvailable = document.getElementById('wdrNairaAvailable');
-  if (wdrPointsAvailable) wdrPointsAvailable.textContent = (taskPts + refPts).toLocaleString();
-  if (wdrNairaAvailable) wdrNairaAvailable.textContent = `₦${((taskPts + refPts) * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-
-  // Sync current mode state
-  selectWithdrawalMode(window.currentWithdrawalMode || 'task');
+  if (wdrRefMinNotice) wdrRefMinNotice.textContent = `Minimum withdrawal threshold: ₦${minRef.toLocaleString()} (${Math.ceil(minRef / rate).toLocaleString()} PTS)`;
 
   // Bank Account Section state
   const hasSavedBank = !!(activeUser.bankDetails && activeUser.bankDetails.bankName && activeUser.bankDetails.accountNumber);
@@ -1409,7 +1391,9 @@ function renderWithdrawalsTab() {
   const savedBox = document.getElementById('savedBankDisplayBox');
   const formWrap = document.getElementById('bankDetailsFormWrap');
   const btnCancel = document.getElementById('btnCancelEditBank');
-  const payoutTargetBox = document.getElementById('wdrPayoutTargetBox');
+
+  const taskPayoutBox = document.getElementById('wdrTaskPayoutTargetBox');
+  const refPayoutBox = document.getElementById('wdrRefPayoutTargetBox');
 
   if (hasSavedBank && !isEditingBankDetails) {
     if (bankBadge) {
@@ -1426,16 +1410,20 @@ function renderWithdrawalsTab() {
     if (dispAcc) dispAcc.textContent = activeUser.bankDetails.accountNumber;
     if (dispName) dispName.textContent = activeUser.bankDetails.accountName || '';
 
-    if (payoutTargetBox) {
-      payoutTargetBox.style.display = 'block';
-      payoutTargetBox.style.background = 'rgba(16, 185, 129, 0.08)';
-      payoutTargetBox.style.border = '1px solid rgba(16, 185, 129, 0.25)';
-      payoutTargetBox.style.color = '#065f46';
-      payoutTargetBox.innerHTML = `
-        <div style="font-weight: 600; margin-bottom: 2px;">Payout Destination:</div>
-        <div>${escapeHtml(activeUser.bankDetails.bankName)} &bull; <strong>${escapeHtml(activeUser.bankDetails.accountNumber)}</strong> (${escapeHtml(activeUser.bankDetails.accountName || '')})</div>
-      `;
-    }
+    const payoutHtml = `
+      <div style="font-weight: 600; margin-bottom: 2px;">Payout Destination:</div>
+      <div>${escapeHtml(activeUser.bankDetails.bankName)} &bull; <strong>${escapeHtml(activeUser.bankDetails.accountNumber)}</strong> (${escapeHtml(activeUser.bankDetails.accountName || '')})</div>
+    `;
+
+    [taskPayoutBox, refPayoutBox].forEach(box => {
+      if (box) {
+        box.style.display = 'block';
+        box.style.background = 'rgba(16, 185, 129, 0.08)';
+        box.style.border = '1px solid rgba(16, 185, 129, 0.25)';
+        box.style.color = '#065f46';
+        box.innerHTML = payoutHtml;
+      }
+    });
   } else {
     // Show editing form
     if (bankBadge) {
@@ -1468,107 +1456,117 @@ function renderWithdrawalsTab() {
       }
     }
 
-    if (payoutTargetBox) {
-      payoutTargetBox.style.display = 'block';
-      payoutTargetBox.style.background = 'rgba(239, 68, 68, 0.08)';
-      payoutTargetBox.style.border = '1px solid rgba(239, 68, 68, 0.25)';
-      payoutTargetBox.style.color = '#991b1b';
-      payoutTargetBox.innerHTML = `
-        <strong>Notice:</strong> Please save your bank account details above before submitting a withdrawal request.
-      `;
-    }
+    const promptHtml = `<strong>Notice:</strong> Please save your destination bank account details above before submitting a withdrawal request.`;
+    [taskPayoutBox, refPayoutBox].forEach(box => {
+      if (box) {
+        box.style.display = 'block';
+        box.style.background = 'rgba(239, 68, 68, 0.08)';
+        box.style.border = '1px solid rgba(239, 68, 68, 0.25)';
+        box.style.color = '#991b1b';
+        box.innerHTML = promptHtml;
+      }
+    });
   }
 
-  // Render user withdrawal history
-  const withdrawals = window.TaskEarnDB.getUserWithdrawals(activeUser.id);
-  const tbody = document.getElementById('userWithdrawalHistoryBody');
+  // Render user withdrawal histories into 2 dedicated tables
+  const allWithdrawals = window.TaskEarnDB.getUserWithdrawals(activeUser.id);
+  const taskWithdrawals = allWithdrawals.filter(w => (w.withdrawalType || 'task') === 'task');
+  const refWithdrawals = allWithdrawals.filter(w => w.withdrawalType === 'referral');
 
-  if (tbody) {
-    if (withdrawals.length === 0) {
-      tbody.innerHTML = `
+  const taskBadge = document.getElementById('taskWdrHistoryBadge');
+  const refBadge = document.getElementById('refWdrHistoryBadge');
+  if (taskBadge) taskBadge.textContent = `${taskWithdrawals.length} Request${taskWithdrawals.length === 1 ? '' : 's'}`;
+  if (refBadge) refBadge.textContent = `${refWithdrawals.length} Request${refWithdrawals.length === 1 ? '' : 's'}`;
+
+  const taskTbody = document.getElementById('userTaskWithdrawalHistoryBody');
+  const refTbody = document.getElementById('userRefWithdrawalHistoryBody');
+
+  const createRowHtml = (w) => {
+    let badgeClass = 'badge-pending';
+    if (w.status === 'approved') badgeClass = 'badge-approved';
+    if (w.status === 'declined') badgeClass = 'badge-declined';
+    return `
+      <tr>
+        <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
+        <td><strong>${w.points.toLocaleString()} PTS</strong></td>
+        <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
+        <td>
+          <div>${escapeHtml(w.bankName)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(w.accountNumber)} &bull; ${escapeHtml(w.accountName)}</div>
+        </td>
+        <td>
+          <span class="badge ${badgeClass}">${w.status.toUpperCase()}</span>
+          ${w.declineReason ? `<div style="font-size: 0.75rem; color: #991b1b; margin-top: 4px;">Reason: ${escapeHtml(w.declineReason)}</div>` : ''}
+        </td>
+      </tr>
+    `;
+  };
+
+  if (taskTbody) {
+    if (taskWithdrawals.length === 0) {
+      taskTbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-            No withdrawal requests yet.
+          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No task withdrawal requests yet.
           </td>
         </tr>
       `;
     } else {
-      tbody.innerHTML = withdrawals.map(w => {
-        let badgeClass = 'badge-pending';
-        if (w.status === 'approved') badgeClass = 'badge-approved';
-        if (w.status === 'declined') badgeClass = 'badge-declined';
-        const isRef = (w.withdrawalType === 'referral');
+      taskTbody.innerHTML = taskWithdrawals.map(createRowHtml).join('');
+    }
+  }
 
-        return `
-          <tr>
-            <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
-            <td>
-              <span class="badge ${isRef ? 'badge-approved' : 'badge-active'}" style="font-size: 0.72rem;">
-                ${isRef ? 'Referral' : 'Task'}
-              </span>
-            </td>
-            <td><strong>${w.points.toLocaleString()} PTS</strong></td>
-            <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
-            <td>
-              <div>${escapeHtml(w.bankName)}</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(w.accountNumber)} &bull; ${escapeHtml(w.accountName)}</div>
-            </td>
-            <td>
-              <span class="badge ${badgeClass}">${w.status.toUpperCase()}</span>
-              ${w.declineReason ? `<div style="font-size: 0.75rem; color: #991b1b; margin-top: 4px;">Reason: ${escapeHtml(w.declineReason)}</div>` : ''}
-            </td>
-          </tr>
-        `;
-      }).join('');
+  if (refTbody) {
+    if (refWithdrawals.length === 0) {
+      refTbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No referral withdrawal requests yet.
+          </td>
+        </tr>
+      `;
+    } else {
+      refTbody.innerHTML = refWithdrawals.map(createRowHtml).join('');
     }
   }
 }
 
-function calculateWithdrawalNaira() {
-  const points = Number(document.getElementById('wdrPointsInput').value) || 0;
-  const settings = window.TaskEarnDB.getSettings();
-  const rate = Number(settings.pointRateNaira) || 1.0;
-  const naira = points * rate;
-  document.getElementById('wdrCalculatedNaira').textContent = `Estimated Payout: ₦${naira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-}
-
 let isSubmittingWithdrawal = false;
 
-async function handleWithdrawalRequest(event) {
-  event.preventDefault();
+async function executeWithdrawalSubmission({ withdrawalType, pointsInputId, alertElId, submitBtn }) {
   if (isSubmittingWithdrawal) return;
 
-  const alertEl = document.getElementById('withdrawalAlert');
-  const points = Number(document.getElementById('wdrPointsInput').value);
-  const btn = event.target.querySelector('button[type="submit"]');
-  const originalText = btn ? btn.textContent : '';
+  const alertEl = document.getElementById(alertElId);
+  const points = Number(document.getElementById(pointsInputId)?.value);
+  const originalText = submitBtn ? submitBtn.textContent : '';
 
   // Must have saved bank details
   if (!activeUser.bankDetails || !activeUser.bankDetails.bankName || !activeUser.bankDetails.accountNumber) {
-    alertEl.className = 'alert alert-error';
-    alertEl.textContent = 'Please enter and save your bank account details above before requesting a withdrawal.';
-    alertEl.style.display = 'block';
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Please enter and save your bank account details above before requesting a withdrawal.';
+      alertEl.style.display = 'block';
+    }
     return;
   }
 
   const { bankName, accountNumber, accountName } = activeUser.bankDetails;
-
   const cleanAcc = (accountNumber || '').replace(/[^0-9]/g, '');
   if (cleanAcc.length !== 10) {
-    alertEl.className = 'alert alert-error';
-    alertEl.textContent = 'Saved bank account number must be exactly 10 digits (NUBAN format). Please edit your bank details.';
-    alertEl.style.display = 'block';
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Saved bank account number must be exactly 10 digits (NUBAN format). Please edit your bank details.';
+      alertEl.style.display = 'block';
+    }
     return;
   }
 
   isSubmittingWithdrawal = true;
   try {
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Submitting request...';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting request...';
     }
-
-    const withdrawalType = document.getElementById('wdrTypeInput')?.value || window.currentWithdrawalMode || 'task';
 
     window.TaskEarnDB.requestWithdrawal({
       userId: activeUser.id,
@@ -1583,25 +1581,62 @@ async function handleWithdrawalRequest(event) {
       await window.TaskEarnDB.pushToCloud();
     }
 
-    alertEl.className = 'alert alert-success';
-    alertEl.textContent = 'Withdrawal request submitted successfully! Please note that withdrawals can take up to 48 hours to be reviewed and credited to your bank account.';
-    alertEl.style.display = 'block';
+    if (alertEl) {
+      alertEl.className = 'alert alert-success';
+      alertEl.textContent = 'Withdrawal request submitted successfully! Please note that withdrawals can take up to 48 hours to be reviewed and credited to your bank account.';
+      alertEl.style.display = 'block';
+    }
 
-    document.getElementById('wdrPointsInput').value = '';
-    calculateWithdrawalNaira();
+    const input = document.getElementById(pointsInputId);
+    if (input) input.value = '';
+    if (withdrawalType === 'task') calculateTaskWithdrawalNaira();
+    else calculateRefWithdrawalNaira();
+
     renderWithdrawalsTab();
     updateWalletHeader();
   } catch (err) {
-    alertEl.className = 'alert alert-error';
-    alertEl.textContent = err.message;
-    alertEl.style.display = 'block';
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = err.message;
+      alertEl.style.display = 'block';
+    }
   } finally {
     isSubmittingWithdrawal = false;
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = originalText;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     }
   }
+}
+
+async function handleTaskWithdrawalSubmit(event) {
+  event.preventDefault();
+  const btn = event.target.querySelector('button[type="submit"]');
+  await executeWithdrawalSubmission({
+    withdrawalType: 'task',
+    pointsInputId: 'wdrTaskPointsInput',
+    alertElId: 'taskWithdrawalAlert',
+    submitBtn: btn
+  });
+}
+window.handleTaskWithdrawalSubmit = handleTaskWithdrawalSubmit;
+
+async function handleRefWithdrawalSubmit(event) {
+  event.preventDefault();
+  const btn = event.target.querySelector('button[type="submit"]');
+  await executeWithdrawalSubmission({
+    withdrawalType: 'referral',
+    pointsInputId: 'wdrRefPointsInput',
+    alertElId: 'refWithdrawalAlert',
+    submitBtn: btn
+  });
+}
+window.handleRefWithdrawalSubmit = handleRefWithdrawalSubmit;
+
+// Fallback legacy submit handler
+async function handleWithdrawalRequest(event) {
+  event.preventDefault();
+  await handleTaskWithdrawalSubmit(event);
 }
 
 // =================== TAB 3: SUPPORT & MESSAGES ===================
