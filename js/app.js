@@ -1762,10 +1762,10 @@ function renderReferralsTab() {
   if (!activeUser) return;
   activeUser = window.TaskEarnDB.getCurrentUser();
   const settings = window.TaskEarnDB.getSettings();
-  const bonus = Number(settings.referralPoints) || 150;
+  const bonus = Number(settings.referralPoints) || 1000;
   const rate = Number(settings.pointRateNaira) || 1.0;
 
-  document.getElementById('refBonusHeadline').textContent = `Earn ${bonus} Points Per Referral`;
+  document.getElementById('refBonusHeadline').textContent = `Earn ${bonus.toLocaleString()} Points Per Referral`;
 
   const userRef = (activeUser.username || activeUser.referralCode || '').toLowerCase();
   const codeInput = document.getElementById('userReferralCodeInput');

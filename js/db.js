@@ -21,7 +21,7 @@ const _DEFAULT_PAYSTACK_SEC = typeof atob === 'function' ? atob('c2tfbGl2ZV83YTV
 
 const DEFAULT_SETTINGS = {
   pointRateNaira: 1.0,      // 1 Point = 1 Naira
-  referralPoints: 150,      // Points rewarded per successful referral
+  referralPoints: 1000,     // Points rewarded per successful referral (1,000 PTS)
   minWithdrawalNaira: 1000, // Legacy fallback threshold
   minTaskWithdrawalNaira: 10000, // Minimum withdrawal threshold for Task points
   minReferralWithdrawalNaira: 1000, // Minimum withdrawal threshold for Referral points
@@ -120,18 +120,18 @@ class DataStore {
         this._notifyNetworkStatus(false, 'You are currently offline. Changes are saved safely on your device.');
       });
 
-      // Smart background polling: only polls when tab is visible every 45s (protects free-tier API limits)
+      // Real-time background sync polling: polls every 15s when active tab is visible
       setInterval(() => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
           this.pullFromCloud();
         }
-      }, 45000);
+      }, 15000);
 
-      // Pull when tab regains focus or becomes visible (throttled to at most once every 25 seconds)
+      // Pull immediately when tab regains focus or becomes visible (throttled to at most once every 8 seconds)
       let lastFocusPull = Date.now();
       const throttledFocusPull = () => {
         const now = Date.now();
-        if (now - lastFocusPull >= 25000) {
+        if (now - lastFocusPull >= 8000) {
           lastFocusPull = now;
           this.pullFromCloud();
         }
@@ -863,7 +863,7 @@ class DataStore {
     if (user.referredBy) {
       const referrer = this.getUserByReferralCode(user.referredBy);
       if (referrer) {
-        const bonus = Number(settings.referralPoints) || 150;
+        const bonus = Number(settings.referralPoints) || 1000;
         referrer.referralPointsBalance = (Number(referrer.referralPointsBalance) || 0) + bonus;
         referrer.pointsBalance = (Number(referrer.taskPointsBalance) || 0) + referrer.referralPointsBalance;
         referrer.totalEarnedPoints = (Number(referrer.totalEarnedPoints) || 0) + bonus;

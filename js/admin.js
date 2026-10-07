@@ -126,6 +126,10 @@ function refreshAdminDataViews(changedKeys = null) {
 function initAdminDashboard() {
   checkAdminAuth();
 
+  if (window.TaskEarnDB && window.TaskEarnDB.pullFromCloud && window.TaskEarnDB.isAdminLoggedIn()) {
+    window.TaskEarnDB.pullFromCloud(true).catch(() => {});
+  }
+
   if (window.TaskEarnDB && window.TaskEarnDB.onSync) {
     window.TaskEarnDB.onSync((type, data) => {
       const badge = document.getElementById('cloudSyncStatusBadge');
