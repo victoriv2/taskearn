@@ -901,9 +901,9 @@ function openUserDrawer(userId) {
       </div>
     </div>
 
-    <div class="grid-stats" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px;">
+    <div class="grid-stats" style="grid-template-columns: 1fr 1fr; margin-bottom: 14px;">
       <div class="stat-box">
-        <div class="stat-label">Wallet Balance</div>
+        <div class="stat-label">Total Wallet Balance</div>
         <div class="stat-value" style="font-size: 1.2rem;">${user.pointsBalance.toLocaleString()} PTS</div>
         <div class="stat-sub">₦${(user.pointsBalance * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</div>
       </div>
@@ -914,11 +914,25 @@ function openUserDrawer(userId) {
       </div>
     </div>
 
+    <!-- Separated Balances -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px;">
+      <div style="background: var(--bg-surface-alt, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px;">
+        <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary-blue);">Task Balance</div>
+        <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-main); margin-top: 2px;">${(Number(user.taskPointsBalance) || 0).toLocaleString()} PTS</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">₦${((Number(user.taskPointsBalance) || 0) * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</div>
+      </div>
+      <div style="background: var(--bg-surface-alt, #f8fafc); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px;">
+        <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--primary-green-dark);">Referral Balance</div>
+        <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-main); margin-top: 2px;">${(Number(user.referralPointsBalance) || 0).toLocaleString()} PTS</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">₦${((Number(user.referralPointsBalance) || 0) * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</div>
+      </div>
+    </div>
+
     <div class="card" style="padding: 14px; margin-bottom: 16px;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
         <h5 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0;">Account Verification</h5>
         <span class="badge ${user.isVerified ? 'badge-approved' : 'badge-pending'}">
-          ${user.isVerified ? 'VERIFIED (₦100 PAID)' : 'UNVERIFIED (PENDING ₦100)'}
+          ${user.isVerified ? 'VERIFIED (₦3,000 PAID)' : 'UNVERIFIED (PENDING ₦3,000)'}
         </span>
       </div>
       <div><strong>Paystack Ref:</strong> <span style="font-family: monospace; font-size: 0.85rem;">${escapeHtml(user.verificationRef || 'None')}</span></div>
@@ -945,10 +959,20 @@ function openUserDrawer(userId) {
 
     <div class="card" style="padding: 14px; margin-bottom: 16px;">
       <h5 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">Adjust User Points</h5>
-      <div style="display: flex; gap: 8px;">
-        <input type="number" id="drawerAdjustPointsInput" placeholder="+100 or -50" style="flex: 1;">
-        <button class="btn btn-secondary btn-sm" onclick="handleDrawerPointsAdjustment('${user.id}')">Apply</button>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+        <div>
+          <label style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Target Pool</label>
+          <select id="drawerAdjustPoolSelect" style="width: 100%; font-size: 0.82rem; padding: 6px 8px;">
+            <option value="task">Task Earnings Pool</option>
+            <option value="referral">Referral Earnings Pool</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Points (+ or -)</label>
+          <input type="number" id="drawerAdjustPointsInput" placeholder="+100 or -50" style="width: 100%; font-size: 0.82rem; padding: 6px 8px;">
+        </div>
       </div>
+      <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="handleDrawerPointsAdjustment('${user.id}')">Apply Balance Adjustment</button>
     </div>
 
     <!-- Reset User Password -->
@@ -1184,17 +1208,35 @@ function closeUserDrawer() {
 }
 
 async function handleDrawerPointsAdjustment(userId) {
+  const poolSelect = document.getElementById('drawerAdjustPoolSelect');
+  const targetPool = poolSelect ? poolSelect.value : 'task';
   const input = document.getElementById('drawerAdjustPointsInput');
-  const delta = Number(input.value);
+  const delta = Number(input?.value);
   if (!delta || isNaN(delta)) return;
 
   const user = window.TaskEarnDB.getUserById(userId);
-  const newBal = Math.max(0, user.pointsBalance + delta);
-  window.TaskEarnDB.updateUser(userId, { pointsBalance: newBal });
+  if (!user) return;
+
+  let taskBal = Number(user.taskPointsBalance) || 0;
+  let refBal = Number(user.referralPointsBalance) || 0;
+
+  if (targetPool === 'referral') {
+    refBal = Math.max(0, refBal + delta);
+  } else {
+    taskBal = Math.max(0, taskBal + delta);
+  }
+  const newTotalBal = taskBal + refBal;
+
+  window.TaskEarnDB.updateUser(userId, {
+    taskPointsBalance: taskBal,
+    referralPointsBalance: refBal,
+    pointsBalance: newTotalBal
+  });
+
   if (window.TaskEarnDB && window.TaskEarnDB.pushToCloud) {
     await window.TaskEarnDB.pushToCloud();
   }
-  await window.showCustomAlert(`User balance updated to ${newBal.toLocaleString()} PTS`, {
+  await window.showCustomAlert(`User ${targetPool} balance updated. Total balance is now ${newTotalBal.toLocaleString()} PTS`, {
     title: 'Balance Updated',
     type: 'success'
   });
@@ -1578,8 +1620,15 @@ function loadFinancialSettings(force = false) {
   const referralPointsInput = document.getElementById('settingReferralPoints');
   if (referralPointsInput) referralPointsInput.value = settings.referralPoints;
 
+  const minTaskInput = document.getElementById('settingMinTaskWithdrawal');
+  if (minTaskInput) minTaskInput.value = settings.minTaskWithdrawalNaira ?? 10000;
+
+  const minRefInput = document.getElementById('settingMinReferralWithdrawal');
+  if (minRefInput) minRefInput.value = settings.minReferralWithdrawalNaira ?? 1000;
+
+  // Fallback if legacy input exists
   const minWithdrawalInput = document.getElementById('settingMinWithdrawal');
-  if (minWithdrawalInput) minWithdrawalInput.value = settings.minWithdrawalNaira;
+  if (minWithdrawalInput) minWithdrawalInput.value = settings.minTaskWithdrawalNaira || settings.minWithdrawalNaira || 10000;
 
   const verificationFeeInput = document.getElementById('settingVerificationFee');
   if (verificationFeeInput) verificationFeeInput.value = settings.verificationFeeNaira ?? 3000;
@@ -1601,7 +1650,8 @@ async function handleSaveFinancialSettings(event) {
   event.preventDefault();
   const pointRateNaira = parseFloat(document.getElementById('settingPointRate')?.value);
   const referralPoints = parseInt(document.getElementById('settingReferralPoints')?.value, 10);
-  const minWithdrawalNaira = parseFloat(document.getElementById('settingMinWithdrawal')?.value);
+  const minTaskWithdrawalNaira = parseFloat(document.getElementById('settingMinTaskWithdrawal')?.value || document.getElementById('settingMinWithdrawal')?.value);
+  const minReferralWithdrawalNaira = parseFloat(document.getElementById('settingMinReferralWithdrawal')?.value || '1000');
   const verificationFeeNaira = parseFloat(document.getElementById('settingVerificationFee')?.value);
   const paystackPublicKey = (document.getElementById('settingPaystackKey')?.value || '').trim();
   const paystackSecretKey = (document.getElementById('settingPaystackSecretKey')?.value || '').trim();
@@ -1629,10 +1679,19 @@ async function handleSaveFinancialSettings(event) {
     return;
   }
 
-  if (isNaN(minWithdrawalNaira) || minWithdrawalNaira < 100) {
+  if (isNaN(minTaskWithdrawalNaira) || minTaskWithdrawalNaira < 100) {
     if (alertEl) {
       alertEl.className = 'alert alert-error';
-      alertEl.textContent = 'Minimum withdrawal amount must be at least ₦100.';
+      alertEl.textContent = 'Minimum task withdrawal amount must be at least ₦100.';
+      alertEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (isNaN(minReferralWithdrawalNaira) || minReferralWithdrawalNaira < 100) {
+    if (alertEl) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Minimum referral withdrawal amount must be at least ₦100.';
       alertEl.style.display = 'block';
     }
     return;
@@ -1691,7 +1750,9 @@ async function handleSaveFinancialSettings(event) {
   const updates = {
     pointRateNaira,
     referralPoints,
-    minWithdrawalNaira,
+    minTaskWithdrawalNaira,
+    minReferralWithdrawalNaira,
+    minWithdrawalNaira: minTaskWithdrawalNaira,
     verificationFeeNaira,
     paystackPublicKey,
     paystackSecretKey,
@@ -1904,6 +1965,7 @@ function renderPayInRecords() {
 }
 
 function createPendingWithdrawalRowHtml(w, uObj) {
+  const isRef = (w.withdrawalType === 'referral');
   return `
     <tr>
       <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
@@ -1917,6 +1979,11 @@ function createPendingWithdrawalRowHtml(w, uObj) {
             <div style="font-size: 0.78rem; color: var(--text-muted);">User ID: ${w.userId}</div>
           </div>
         </div>
+      </td>
+      <td>
+        <span class="badge ${isRef ? 'badge-approved' : 'badge-active'}" style="font-size: 0.72rem;">
+          ${isRef ? 'Referral' : 'Task'}
+        </span>
       </td>
       <td><strong>${w.points.toLocaleString()} PTS</strong></td>
       <td><strong style="color: var(--primary-green-dark); font-size: 1.05rem;">₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
@@ -2120,6 +2187,7 @@ async function resolvePaystackBankCode(rawBankName, secretKey) {
 
 function createCompletedWithdrawalRowHtml(w, uObj) {
   const isApproved = w.status === 'approved';
+  const isRef = (w.withdrawalType === 'referral');
   const paystackRef = w.paystackTransfer?.reference || w.paystackReference || '';
   const gateway = w.paystackTransfer?.gateway || (paystackRef ? 'Paystack Debit' : (isApproved ? 'Manual Transfer' : ''));
 
@@ -2136,6 +2204,11 @@ function createCompletedWithdrawalRowHtml(w, uObj) {
             <div style="font-size: 0.76rem; color: var(--text-muted);">User ID: ${w.userId}</div>
           </div>
         </div>
+      </td>
+      <td>
+        <span class="badge ${isRef ? 'badge-approved' : 'badge-active'}" style="font-size: 0.72rem;">
+          ${isRef ? 'Referral' : 'Task'}
+        </span>
       </td>
       <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
       <td>
@@ -2155,6 +2228,22 @@ function createCompletedWithdrawalRowHtml(w, uObj) {
   `;
 }
 
+let activeAdminFinanceWithdrawalFilter = 'all';
+
+function setAdminFinanceWithdrawalFilter(filterType) {
+  activeAdminFinanceWithdrawalFilter = filterType || 'all';
+  const btnAll = document.getElementById('btnAdmFinanceWdrFilterAll');
+  const btnTask = document.getElementById('btnAdmFinanceWdrFilterTask');
+  const btnRef = document.getElementById('btnAdmFinanceWdrFilterReferral');
+
+  if (btnAll) btnAll.className = activeAdminFinanceWithdrawalFilter === 'all' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (btnTask) btnTask.className = activeAdminFinanceWithdrawalFilter === 'task' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (btnRef) btnRef.className = activeAdminFinanceWithdrawalFilter === 'referral' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+
+  renderWithdrawalsQueue();
+}
+window.setAdminFinanceWithdrawalFilter = setAdminFinanceWithdrawalFilter;
+
 // Withdrawals Queue & Completed Logs (Both Financial Preview & Full Screen)
 function renderWithdrawalsQueue() {
   const withdrawals = window.TaskEarnDB.getWithdrawals();
@@ -2165,57 +2254,91 @@ function renderWithdrawalsQueue() {
   const pending = withdrawals.filter(w => w.status === 'pending');
   const completed = withdrawals.filter(w => w.status !== 'pending');
 
+  const pendingTaskCount = pending.filter(w => (w.withdrawalType || 'task') === 'task').length;
+  const pendingReferralCount = pending.filter(w => w.withdrawalType === 'referral').length;
+
+  const countAllEl = document.getElementById('admFinanceWdrCountAll');
+  const countTaskEl = document.getElementById('admFinanceWdrCountTask');
+  const countRefEl = document.getElementById('admFinanceWdrCountReferral');
+  if (countAllEl) countAllEl.textContent = pending.length;
+  if (countTaskEl) countTaskEl.textContent = pendingTaskCount;
+  if (countRefEl) countRefEl.textContent = pendingReferralCount;
+
   const pendingBadge = document.getElementById('pendingWithdrawalsBadge');
-  if (pendingBadge) pendingBadge.textContent = `${pending.length} Pending`;
+  if (pendingBadge) {
+    pendingBadge.textContent = `${pending.length} Pending (${pendingTaskCount} Task, ${pendingReferralCount} Ref)`;
+  }
 
   const fullPendingBadge = document.getElementById('fullPendingTotalBadge');
   const fullLogsBadge = document.getElementById('fullLogsTotalBadge');
 
   const statPendingCount = document.getElementById('statPendingWithdrawalsCount');
-  if (statPendingCount) statPendingCount.textContent = `${pending.length} pending request${pending.length === 1 ? '' : 's'}`;
+  if (statPendingCount) statPendingCount.textContent = `${pending.length} pending (${pendingTaskCount} Task, ${pendingReferralCount} Ref)`;
 
   const financePendingBody = document.getElementById('admPendingWithdrawalsBodyFinance') || document.getElementById('admPendingWithdrawalsBody');
   const fullPendingBody = document.getElementById('admPendingWithdrawalsBodyFull');
 
   const emptyPendingMsg = `
     <tr>
-      <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+      <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
         No pending withdrawal requests. All payouts are cleared!
       </td>
     </tr>
   `;
 
-  // Financial preview tab (scrollable within max 5 items height)
+  // Financial preview tab (filtered by activeAdminFinanceWithdrawalFilter)
   if (financePendingBody) {
-    if (pending.length === 0) {
-      financePendingBody.innerHTML = emptyPendingMsg;
+    let financeFiltered = pending;
+    if (activeAdminFinanceWithdrawalFilter === 'task') {
+      financeFiltered = pending.filter(w => (w.withdrawalType || 'task') === 'task');
+    } else if (activeAdminFinanceWithdrawalFilter === 'referral') {
+      financeFiltered = pending.filter(w => w.withdrawalType === 'referral');
+    }
+
+    if (financeFiltered.length === 0) {
+      financePendingBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            ${pending.length === 0 ? 'No pending withdrawal requests. All payouts are cleared!' : `No pending ${activeAdminFinanceWithdrawalFilter} withdrawal requests.`}
+          </td>
+        </tr>
+      `;
     } else {
-      financePendingBody.innerHTML = pending.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
+      financePendingBody.innerHTML = financeFiltered.map(w => createPendingWithdrawalRowHtml(w, userMap[w.userId])).join('');
     }
   }
 
-  // Full pending subpage with search
+  // Full pending subpage with search & type filter
   if (fullPendingBody) {
     const pendingSearchInput = document.getElementById('admPendingWithdrawalsSearchInputFull');
+    const typeFilterSelect = document.getElementById('admPendingWithdrawalsTypeFilterFull');
+    const selectedType = typeFilterSelect?.value || 'all';
     const pendingQuery = (pendingSearchInput?.value || '').toLowerCase().trim();
+    
     let filteredPending = pending;
+    if (selectedType === 'task') {
+      filteredPending = filteredPending.filter(w => (w.withdrawalType || 'task') === 'task');
+    } else if (selectedType === 'referral') {
+      filteredPending = filteredPending.filter(w => w.withdrawalType === 'referral');
+    }
 
     if (pendingQuery) {
-      filteredPending = pending.filter(w => {
+      filteredPending = filteredPending.filter(w => {
         const u = userMap[w.userId];
         const userName = (w.userName || (u ? `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''}` : '')).toLowerCase();
         const userId = (w.userId || '').toLowerCase();
         const bankName = (w.bankName || '').toLowerCase();
         const accNum = (w.accountNumber || '').toLowerCase();
         const accName = (w.accountName || '').toLowerCase();
+        const typeStr = (w.withdrawalType || 'task').toLowerCase();
         const amount = String(w.amountNaira || '');
         const points = String(w.points || '');
-        return userName.includes(pendingQuery) || userId.includes(pendingQuery) || bankName.includes(pendingQuery) || accNum.includes(pendingQuery) || accName.includes(pendingQuery) || amount.includes(pendingQuery) || points.includes(pendingQuery);
+        return userName.includes(pendingQuery) || userId.includes(pendingQuery) || bankName.includes(pendingQuery) || accNum.includes(pendingQuery) || accName.includes(pendingQuery) || amount.includes(pendingQuery) || points.includes(pendingQuery) || typeStr.includes(pendingQuery);
       });
     }
 
     if (fullPendingBadge) {
-      fullPendingBadge.textContent = pendingQuery 
+      fullPendingBadge.textContent = (pendingQuery || selectedType !== 'all') 
         ? `${filteredPending.length} of ${pending.length} Found`
         : `${pending.length} Pending`;
     }
@@ -2223,8 +2346,8 @@ function renderWithdrawalsQueue() {
     if (filteredPending.length === 0) {
       fullPendingBody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
-            ${pendingQuery ? 'No pending withdrawal requests match your search.' : 'No pending withdrawal requests. All payouts are cleared!'}
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            ${pendingQuery ? 'No pending withdrawal requests match your search.' : 'No pending withdrawal requests found.'}
           </td>
         </tr>
       `;

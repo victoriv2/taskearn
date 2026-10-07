@@ -711,18 +711,37 @@ function updateWalletHeader() {
   activeUser = window.TaskEarnDB.getCurrentUser();
   const settings = window.TaskEarnDB.getSettings();
   const rate = Number(settings.pointRateNaira) || 1.0;
-  const nairaVal = (activeUser.pointsBalance * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 });
+  
+  const totalPts = Number(activeUser.pointsBalance) || 0;
+  const taskPts = Number(activeUser.taskPointsBalance) || 0;
+  const refPts = Number(activeUser.referralPointsBalance) || 0;
 
-  // Top header wallet
-  document.getElementById('userWalletPoints').textContent = `${activeUser.pointsBalance.toLocaleString()} PTS`;
-  document.getElementById('userWalletNaira').textContent = `₦${nairaVal}`;
+  const totalNairaVal = (totalPts * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 });
+  const taskNairaVal = (taskPts * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 });
+  const refNairaVal = (refPts * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 });
+
+  // Top header wallet (separate pills)
+  const uWTaskPts = document.getElementById('userWalletTaskPoints');
+  const uWTaskNaira = document.getElementById('userWalletTaskNaira');
+  const uWRefPts = document.getElementById('userWalletRefPoints');
+  const uWRefNaira = document.getElementById('userWalletRefNaira');
+  if (uWTaskPts) uWTaskPts.textContent = `${taskPts.toLocaleString()} PTS`;
+  if (uWTaskNaira) uWTaskNaira.textContent = `₦${taskNairaVal}`;
+  if (uWRefPts) uWRefPts.textContent = `${refPts.toLocaleString()} PTS`;
+  if (uWRefNaira) uWRefNaira.textContent = `₦${refNairaVal}`;
+
+  // Fallback single header pill if present
+  const uWPts = document.getElementById('userWalletPoints');
+  const uWNaira = document.getElementById('userWalletNaira');
+  if (uWPts) uWPts.textContent = `${totalPts.toLocaleString()} PTS`;
+  if (uWNaira) uWNaira.textContent = `₦${totalNairaVal}`;
 
   // Sidebar profile card
   const sName = document.getElementById('sidebarUserName');
   const sPoints = document.getElementById('sidebarUserPoints');
   const sAvatar = document.getElementById('sidebarUserAvatar');
   if (sName) sName.textContent = `${activeUser.firstName} ${activeUser.lastName}`;
-  if (sPoints) sPoints.textContent = `${activeUser.pointsBalance.toLocaleString()} PTS`;
+  if (sPoints) sPoints.textContent = `${totalPts.toLocaleString()} PTS`;
   if (sAvatar) {
     if (activeUser.avatar) {
       sAvatar.innerHTML = `<img src="${activeUser.avatar}" style="width:100%;height:100%;object-fit:cover;">`;
@@ -731,11 +750,20 @@ function updateWalletHeader() {
     }
   }
 
-  // Hero card
+  // Hero card (Total, Task, Referral)
   const heroPoints = document.getElementById('heroPointsBalance');
   const heroNaira = document.getElementById('heroNairaBalance');
-  if (heroPoints) heroPoints.textContent = activeUser.pointsBalance.toLocaleString();
-  if (heroNaira) heroNaira.textContent = `₦${nairaVal}`;
+  if (heroPoints) heroPoints.textContent = totalPts.toLocaleString();
+  if (heroNaira) heroNaira.textContent = `₦${totalNairaVal}`;
+
+  const hTaskPts = document.getElementById('heroTaskPoints');
+  const hTaskNaira = document.getElementById('heroTaskNaira');
+  const hRefPts = document.getElementById('heroRefPoints');
+  const hRefNaira = document.getElementById('heroRefNaira');
+  if (hTaskPts) hTaskPts.textContent = `${taskPts.toLocaleString()} PTS`;
+  if (hTaskNaira) hTaskNaira.textContent = `₦${taskNairaVal}`;
+  if (hRefPts) hRefPts.textContent = `${refPts.toLocaleString()} PTS`;
+  if (hRefNaira) hRefNaira.textContent = `₦${refNairaVal}`;
 
   updateUserTabIndicators();
 }
@@ -1274,22 +1302,106 @@ async function handleSaveBankDetails(event) {
   }
 }
 
+window.currentWithdrawalMode = 'task';
+
+function selectWithdrawalMode(mode) {
+  const cleanMode = mode === 'referral' ? 'referral' : 'task';
+  window.currentWithdrawalMode = cleanMode;
+
+  const btnTask = document.getElementById('btnWdrTabTask');
+  const btnRef = document.getElementById('btnWdrTabReferral');
+  const taskBox = document.getElementById('wdrTaskBalBox');
+  const refBox = document.getElementById('wdrRefBalBox');
+  const typeInput = document.getElementById('wdrTypeInput');
+  const activeTitle = document.getElementById('wdrActiveSourceTitle');
+  const activeBadge = document.getElementById('wdrActiveSourceBadge');
+  const submitBtn = document.getElementById('btnSubmitWithdrawal');
+
+  if (typeInput) typeInput.value = cleanMode;
+
+  if (cleanMode === 'referral') {
+    if (btnRef) { btnRef.className = 'btn btn-primary btn-sm'; btnRef.style.fontWeight = '700'; }
+    if (btnTask) { btnTask.className = 'btn btn-secondary btn-sm'; btnTask.style.fontWeight = '600'; }
+    if (refBox) { refBox.style.border = '2px solid var(--primary-green-dark)'; refBox.style.boxShadow = '0 0 0 1px var(--primary-green-dark)'; }
+    if (taskBox) { taskBox.style.border = '1px solid var(--border-color)'; taskBox.style.boxShadow = 'none'; }
+    if (activeTitle) activeTitle.textContent = 'Referral Earnings';
+    if (activeBadge) {
+      activeBadge.textContent = 'Min: ₦1,000';
+      activeBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      activeBadge.style.color = '#047857';
+    }
+    if (submitBtn) submitBtn.textContent = 'Submit Referral Withdrawal Request (₦1,000 Min)';
+  } else {
+    if (btnTask) { btnTask.className = 'btn btn-primary btn-sm'; btnTask.style.fontWeight = '700'; }
+    if (btnRef) { btnRef.className = 'btn btn-secondary btn-sm'; btnRef.style.fontWeight = '600'; }
+    if (taskBox) { taskBox.style.border = '2px solid var(--primary-blue)'; taskBox.style.boxShadow = '0 0 0 1px var(--primary-blue)'; }
+    if (refBox) { refBox.style.border = '1px solid var(--border-color)'; refBox.style.boxShadow = 'none'; }
+    if (activeTitle) activeTitle.textContent = 'Task Earnings';
+    if (activeBadge) {
+      activeBadge.textContent = 'Min: ₦10,000';
+      activeBadge.style.background = 'rgba(37, 99, 235, 0.12)';
+      activeBadge.style.color = 'var(--primary-blue)';
+    }
+    if (submitBtn) submitBtn.textContent = 'Submit Task Withdrawal Request (₦10,000 Min)';
+  }
+}
+window.selectWithdrawalMode = selectWithdrawalMode;
+
+function setWithdrawAllPoints() {
+  if (!activeUser) return;
+  activeUser = window.TaskEarnDB.getCurrentUser();
+  const mode = window.currentWithdrawalMode || 'task';
+  const available = mode === 'referral' 
+    ? (Number(activeUser.referralPointsBalance) || 0)
+    : (Number(activeUser.taskPointsBalance) || 0);
+
+  const input = document.getElementById('wdrPointsInput');
+  if (input) {
+    input.value = available > 0 ? available : '';
+    calculateWithdrawalNaira();
+  }
+}
+window.setWithdrawAllPoints = setWithdrawAllPoints;
+
 function renderWithdrawalsTab() {
   if (!activeUser) return;
   activeUser = window.TaskEarnDB.getCurrentUser();
   const settings = window.TaskEarnDB.getSettings();
   const rate = Number(settings.pointRateNaira) || 1.0;
-  const minNaira = Number(settings.minWithdrawalNaira) || 1000;
+  const minTask = Number(settings.minTaskWithdrawalNaira) || 10000;
+  const minRef = Number(settings.minReferralWithdrawalNaira) || 1000;
+
+  const taskPts = Number(activeUser.taskPointsBalance) || 0;
+  const refPts = Number(activeUser.referralPointsBalance) || 0;
+  const taskNaira = taskPts * rate;
+  const refNaira = refPts * rate;
 
   const wdrRateBadge = document.getElementById('wdrRateBadge');
+  if (wdrRateBadge) wdrRateBadge.textContent = `1 Point = ₦${rate.toFixed(2)}`;
+
+  // Dual balances
+  const wdrTaskPtsEl = document.getElementById('wdrTaskPointsAvailable');
+  const wdrTaskNairaEl = document.getElementById('wdrTaskNairaAvailable');
+  const wdrTaskMinNotice = document.getElementById('wdrTaskMinNotice');
+  if (wdrTaskPtsEl) wdrTaskPtsEl.textContent = taskPts.toLocaleString();
+  if (wdrTaskNairaEl) wdrTaskNairaEl.textContent = `₦${taskNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  if (wdrTaskMinNotice) wdrTaskMinNotice.textContent = `Min withdrawal: ₦${minTask.toLocaleString()} (${Math.ceil(minTask / rate).toLocaleString()} PTS)`;
+
+  const wdrRefPtsEl = document.getElementById('wdrRefPointsAvailable');
+  const wdrRefNairaEl = document.getElementById('wdrRefNairaAvailable');
+  const wdrRefMinNotice = document.getElementById('wdrRefMinNotice');
+  if (wdrRefPtsEl) wdrRefPtsEl.textContent = refPts.toLocaleString();
+  if (wdrRefNairaEl) wdrRefNairaEl.textContent = `₦${refNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  if (wdrRefMinNotice) wdrRefMinNotice.textContent = `Min withdrawal: ₦${minRef.toLocaleString()} (${Math.ceil(minRef / rate).toLocaleString()} PTS)`;
+
+  // Legacy element sync if present
   const wdrPointsAvailable = document.getElementById('wdrPointsAvailable');
   const wdrNairaAvailable = document.getElementById('wdrNairaAvailable');
-  const wdrMinNotice = document.getElementById('wdrMinNotice');
+  if (wdrPointsAvailable) wdrPointsAvailable.textContent = (taskPts + refPts).toLocaleString();
+  if (wdrNairaAvailable) wdrNairaAvailable.textContent = `₦${((taskPts + refPts) * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-  if (wdrRateBadge) wdrRateBadge.textContent = `1 Point = ₦${rate.toFixed(2)}`;
-  if (wdrPointsAvailable) wdrPointsAvailable.textContent = activeUser.pointsBalance.toLocaleString();
-  if (wdrNairaAvailable) wdrNairaAvailable.textContent = `₦${(activeUser.pointsBalance * rate).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-  if (wdrMinNotice) wdrMinNotice.textContent = `Minimum withdrawal: ₦${minNaira.toLocaleString()}`;
+  // Sync current mode state
+  selectWithdrawalMode(window.currentWithdrawalMode || 'task');
 
   // Bank Account Section state
   const hasSavedBank = !!(activeUser.bankDetails && activeUser.bankDetails.bankName && activeUser.bankDetails.accountNumber);
@@ -1375,7 +1487,7 @@ function renderWithdrawalsTab() {
     if (withdrawals.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
             No withdrawal requests yet.
           </td>
         </tr>
@@ -1385,11 +1497,17 @@ function renderWithdrawalsTab() {
         let badgeClass = 'badge-pending';
         if (w.status === 'approved') badgeClass = 'badge-approved';
         if (w.status === 'declined') badgeClass = 'badge-declined';
+        const isRef = (w.withdrawalType === 'referral');
 
         return `
           <tr>
             <td>${new Date(w.requestedAt).toLocaleDateString()}</td>
-            <td><strong>${w.points.toLocaleString()}</strong></td>
+            <td>
+              <span class="badge ${isRef ? 'badge-approved' : 'badge-active'}" style="font-size: 0.72rem;">
+                ${isRef ? 'Referral' : 'Task'}
+              </span>
+            </td>
+            <td><strong>${w.points.toLocaleString()} PTS</strong></td>
             <td><strong>₦${w.amountNaira.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></td>
             <td>
               <div>${escapeHtml(w.bankName)}</div>
@@ -1450,8 +1568,11 @@ async function handleWithdrawalRequest(event) {
       btn.textContent = 'Submitting request...';
     }
 
+    const withdrawalType = document.getElementById('wdrTypeInput')?.value || window.currentWithdrawalMode || 'task';
+
     window.TaskEarnDB.requestWithdrawal({
       userId: activeUser.id,
+      withdrawalType,
       points,
       bankName,
       accountNumber: cleanAcc,

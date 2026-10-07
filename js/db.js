@@ -22,7 +22,9 @@ const _DEFAULT_PAYSTACK_SEC = typeof atob === 'function' ? atob('c2tfbGl2ZV83YTV
 const DEFAULT_SETTINGS = {
   pointRateNaira: 1.0,      // 1 Point = 1 Naira
   referralPoints: 150,      // Points rewarded per successful referral
-  minWithdrawalNaira: 1000, // Minimum withdrawal threshold in Naira
+  minWithdrawalNaira: 1000, // Legacy fallback threshold
+  minTaskWithdrawalNaira: 10000, // Minimum withdrawal threshold for Task points
+  minReferralWithdrawalNaira: 1000, // Minimum withdrawal threshold for Referral points
   verificationFeeNaira: 3000, // One-time account verification fee in Naira
   paystackPublicKey: 'pk_live_7ad543047c70c866ded395106782bf387c9fff6f',
   paystackSecretKey: _DEFAULT_PAYSTACK_SEC,
@@ -564,7 +566,39 @@ class DataStore {
 
   // =================== USERS & AUTH ===================
   getUsers() {
-    return this._get(STORAGE_KEYS.USERS);
+    const rawUsers = this._get(STORAGE_KEYS.USERS);
+    let mutated = false;
+    const users = rawUsers.map(u => {
+      let changed = false;
+      let taskBal = u.taskPointsBalance;
+      let refBal = u.referralPointsBalance;
+      if (taskBal === undefined || taskBal === null) {
+        taskBal = Number(u.pointsBalance) || 0;
+        changed = true;
+      }
+      if (refBal === undefined || refBal === null) {
+        refBal = 0;
+        changed = true;
+      }
+      const totalPoints = (Number(taskBal) || 0) + (Number(refBal) || 0);
+      if (u.pointsBalance !== totalPoints) {
+        changed = true;
+      }
+      if (changed) {
+        mutated = true;
+        return {
+          ...u,
+          taskPointsBalance: Number(taskBal) || 0,
+          referralPointsBalance: Number(refBal) || 0,
+          pointsBalance: totalPoints
+        };
+      }
+      return u;
+    });
+    if (mutated) {
+      this._set(STORAGE_KEYS.USERS, users);
+    }
+    return users;
   }
 
   getUserById(id) {
@@ -769,6 +803,8 @@ class DataStore {
       password: password, // In production/Supabase, handled by secure auth hashing
       referralCode: cleanUsername, // Referral code is the user's username
       referredBy: referrer ? (referrer.username || referrer.referralCode) : null,
+      taskPointsBalance: 0,
+      referralPointsBalance: 0,
       pointsBalance: 0,
       totalEarnedPoints: 0,
       status: 'active',
@@ -823,13 +859,14 @@ class DataStore {
     payments.unshift(newPayment);
     this._set(STORAGE_KEYS.PAYMENTS, payments);
 
-    // Reward referrer once the new user pays their ₦100 verification fee
+    // Reward referrer once the new user pays their verification fee
     if (user.referredBy) {
       const referrer = this.getUserByReferralCode(user.referredBy);
       if (referrer) {
         const bonus = Number(settings.referralPoints) || 150;
-        referrer.pointsBalance = (referrer.pointsBalance || 0) + bonus;
-        referrer.totalEarnedPoints = (referrer.totalEarnedPoints || 0) + bonus;
+        referrer.referralPointsBalance = (Number(referrer.referralPointsBalance) || 0) + bonus;
+        referrer.pointsBalance = (Number(referrer.taskPointsBalance) || 0) + referrer.referralPointsBalance;
+        referrer.totalEarnedPoints = (Number(referrer.totalEarnedPoints) || 0) + bonus;
         const refIdx = users.findIndex(u => u.id === referrer.id);
         if (refIdx !== -1) {
           users[refIdx] = referrer;
@@ -1091,9 +1128,15 @@ class DataStore {
   creditUserPoints(userId, points) {
     const user = this.getUserById(userId);
     if (!user) return;
-    const newBal = (Number(user.pointsBalance) || 0) + Number(points);
-    const newTotal = (Number(user.totalEarnedPoints) || 0) + Number(points);
-    this.updateUser(userId, { pointsBalance: newBal, totalEarnedPoints: newTotal });
+    const added = Number(points) || 0;
+    const newTaskBal = (Number(user.taskPointsBalance) || 0) + added;
+    const refBal = Number(user.referralPointsBalance) || 0;
+    const newTotal = (Number(user.totalEarnedPoints) || 0) + added;
+    this.updateUser(userId, {
+      taskPointsBalance: newTaskBal,
+      pointsBalance: newTaskBal + refBal,
+      totalEarnedPoints: newTotal
+    });
   }
 
   incrementTaskCompletions(taskId) {
@@ -1111,7 +1154,7 @@ class DataStore {
     return this.getWithdrawals().filter(w => w.userId === userId);
   }
 
-  requestWithdrawal({ userId, points, bankName, accountNumber, accountName }) {
+  requestWithdrawal({ userId, points, bankName, accountNumber, accountName, withdrawalType = 'task' }) {
     const user = this.getUserById(userId);
     if (!user) throw new Error('User not found.');
 
@@ -1128,27 +1171,40 @@ class DataStore {
       throw new Error('Please enter the account holder full name.');
     }
 
+    const cleanType = (withdrawalType === 'referral') ? 'referral' : 'task';
     const settings = this.getSettings();
     const rate = Number(settings.pointRateNaira) || 1.0;
-    const minNaira = Number(settings.minWithdrawalNaira) || 1000;
+    
+    // Dynamic minimum threshold: ₦10,000 for task, ₦1,000 for referral
+    const minNaira = cleanType === 'referral'
+      ? (Number(settings.minReferralWithdrawalNaira) || 1000)
+      : (Number(settings.minTaskWithdrawalNaira) || 10000);
+
     const amountNaira = Number(points) * rate;
 
     if (amountNaira < minNaira) {
-      throw new Error(`Minimum withdrawal amount is ₦${minNaira.toLocaleString()} (${Math.ceil(minNaira / rate)} points).`);
+      const typeLabel = cleanType === 'referral' ? 'Referral' : 'Task';
+      throw new Error(`Minimum withdrawal for ${typeLabel} earnings is ₦${minNaira.toLocaleString()} (${Math.ceil(minNaira / rate)} points).`);
     }
 
-    if (user.pointsBalance < points) {
-      throw new Error('Insufficient points balance.');
+    const taskBal = Number(user.taskPointsBalance) || 0;
+    const refBal = Number(user.referralPointsBalance) || 0;
+    const availableForType = cleanType === 'referral' ? refBal : taskBal;
+
+    if (availableForType < points) {
+      const typeLabel = cleanType === 'referral' ? 'Referral' : 'Task';
+      throw new Error(`Insufficient ${typeLabel} points balance. You have ${availableForType.toLocaleString()} ${typeLabel} points available.`);
     }
 
     const numPoints = Number(points);
 
-    // Network guard: prevent duplicate withdrawal submissions within 5 seconds for same user & amount
+    // Network guard: prevent duplicate withdrawal submissions within 5 seconds for same user & amount & type
     const existingWithdrawals = this.getWithdrawals();
     const recentDuplicate = existingWithdrawals.find(w => 
       w.userId === userId &&
       w.status === 'pending' &&
       w.points === numPoints &&
+      (w.withdrawalType || 'task') === cleanType &&
       w.accountNumber === cleanAcc &&
       (Date.now() - new Date(w.requestedAt).getTime()) < 5000
     );
@@ -1158,10 +1214,20 @@ class DataStore {
       return recentDuplicate;
     }
 
-    // Deduct points from user immediately (held in escrow)
-    const newBal = user.pointsBalance - points;
+    // Deduct points from correct balance pool immediately (held in escrow)
+    let newTaskBal = taskBal;
+    let newRefBal = refBal;
+    if (cleanType === 'referral') {
+      newRefBal = Math.max(0, refBal - numPoints);
+    } else {
+      newTaskBal = Math.max(0, taskBal - numPoints);
+    }
+    const newTotalBal = newTaskBal + newRefBal;
+
     this.updateUser(userId, {
-      pointsBalance: newBal,
+      taskPointsBalance: newTaskBal,
+      referralPointsBalance: newRefBal,
+      pointsBalance: newTotalBal,
       bankDetails: { bankName: bankName.trim(), accountNumber: cleanAcc, accountName: accountName.trim() }
     });
 
@@ -1169,6 +1235,7 @@ class DataStore {
       id: 'wdr_' + Date.now(),
       userId,
       userName: `${user.firstName} ${user.lastName}`,
+      withdrawalType: cleanType, // 'task' | 'referral'
       points: Number(points),
       amountNaira: amountNaira,
       bankName: bankName.trim(),
@@ -1205,11 +1272,23 @@ class DataStore {
       if (transferData.status) wdr.paystackStatus = transferData.status;
     }
 
-    // If declined, refund points to user balance
+    // If declined, refund points to user's correct balance (task vs referral)
     if (status === 'declined') {
       const user = this.getUserById(wdr.userId);
       if (user) {
-        this.updateUser(wdr.userId, { pointsBalance: user.pointsBalance + wdr.points });
+        const cleanType = (wdr.withdrawalType === 'referral') ? 'referral' : 'task';
+        let curTask = Number(user.taskPointsBalance) || 0;
+        let curRef = Number(user.referralPointsBalance) || 0;
+        if (cleanType === 'referral') {
+          curRef += Number(wdr.points) || 0;
+        } else {
+          curTask += Number(wdr.points) || 0;
+        }
+        this.updateUser(wdr.userId, {
+          taskPointsBalance: curTask,
+          referralPointsBalance: curRef,
+          pointsBalance: curTask + curRef
+        });
       }
     }
 

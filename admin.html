@@ -506,9 +506,15 @@
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label" for="settingMinWithdrawal">Minimum Withdrawal (₦)</label>
-                  <input type="number" id="settingMinWithdrawal" min="100" required>
-                  <div class="form-helper">Lowest amount users can withdraw.</div>
+                  <label class="form-label" for="settingMinTaskWithdrawal">Min Task Withdrawal (₦)</label>
+                  <input type="number" id="settingMinTaskWithdrawal" min="100" required value="10000">
+                  <div class="form-helper">Minimum amount for task earnings cashouts.</div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="settingMinReferralWithdrawal">Min Referral Withdrawal (₦)</label>
+                  <input type="number" id="settingMinReferralWithdrawal" min="100" required value="1000">
+                  <div class="form-helper">Minimum amount for referral earnings cashouts.</div>
                 </div>
               </div>
 
@@ -682,6 +688,16 @@
                     </button>
                   </div>
                 </div>
+              <div style="display: flex; gap: 8px; margin-top: 12px; margin-bottom: 8px;">
+                <button type="button" class="btn btn-primary btn-sm" id="btnAdmFinanceWdrFilterAll" onclick="setAdminFinanceWithdrawalFilter('all')" style="padding: 4px 12px; font-size: 0.78rem;">
+                  All Requests (<span id="admFinanceWdrCountAll">0</span>)
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnAdmFinanceWdrFilterTask" onclick="setAdminFinanceWithdrawalFilter('task')" style="padding: 4px 12px; font-size: 0.78rem;">
+                  Task Requests (<span id="admFinanceWdrCountTask">0</span>)
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnAdmFinanceWdrFilterReferral" onclick="setAdminFinanceWithdrawalFilter('referral')" style="padding: 4px 12px; font-size: 0.78rem;">
+                  Referral Requests (<span id="admFinanceWdrCountReferral">0</span>)
+                </button>
               </div>
             </div>
 
@@ -691,6 +707,7 @@
                   <tr>
                     <th>Date</th>
                     <th>User</th>
+                    <th>Source</th>
                     <th>Points</th>
                     <th>Amount (₦)</th>
                     <th>Destination Bank & Account</th>
@@ -725,6 +742,7 @@
                   <tr>
                     <th>Date</th>
                     <th>User</th>
+                    <th>Source</th>
                     <th>Amount (₦)</th>
                     <th>Bank & Account</th>
                     <th>Status</th>
@@ -1044,11 +1062,18 @@
               </div>
             </div>
 
-            <!-- Toolbar for search -->
+            <!-- Toolbar for search & filter -->
             <div class="toolbar" style="margin-bottom: 14px;">
               <div class="search-box">
                 <span id="admPendingWithdrawalsSearchIconFull"></span>
                 <input type="text" id="admPendingWithdrawalsSearchInputFull" placeholder="Search by user, bank, account number, or amount..." oninput="renderWithdrawalsQueue()">
+              </div>
+              <div class="filter-actions">
+                <select id="admPendingWithdrawalsTypeFilterFull" onchange="renderWithdrawalsQueue()">
+                  <option value="all">All Request Types</option>
+                  <option value="task">Task Requests Only</option>
+                  <option value="referral">Referral Requests Only</option>
+                </select>
               </div>
             </div>
 
@@ -1058,6 +1083,7 @@
                   <tr>
                     <th>Date</th>
                     <th>User</th>
+                    <th>Source</th>
                     <th>Points</th>
                     <th>Amount (₦)</th>
                     <th>Destination Bank & Account</th>
@@ -1106,6 +1132,7 @@
                   <tr>
                     <th>Date</th>
                     <th>User</th>
+                    <th>Source</th>
                     <th>Amount (₦)</th>
                     <th>Bank & Account</th>
                     <th>Status</th>

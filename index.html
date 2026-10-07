@@ -238,11 +238,18 @@
           <span>Task<span class="brand-highlight">Earn</span></span>
         </div>
         
-        <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
-          <div class="wallet-pill" title="Points Balance & Naira Equivalent">
-            <span id="userWalletPoints">0 PTS</span>
-            <span style="opacity: 0.5;">|</span>
-            <span id="userWalletNaira">₦0.00</span>
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+          <div class="wallet-pill" title="Task Earnings Balance" style="cursor: pointer;" onclick="switchUserTab('withdrawals'); selectWithdrawalMode('task');">
+            <span style="font-size: 0.72rem; opacity: 0.75; font-weight: 600; text-transform: uppercase;">Task:</span>
+            <span id="userWalletTaskPoints">0 PTS</span>
+            <span style="opacity: 0.4;">|</span>
+            <span id="userWalletTaskNaira" style="color: #4ade80;">₦0.00</span>
+          </div>
+          <div class="wallet-pill" title="Referral Earnings Balance" style="cursor: pointer; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.3);" onclick="switchUserTab('withdrawals'); selectWithdrawalMode('referral');">
+            <span style="font-size: 0.72rem; opacity: 0.75; font-weight: 600; text-transform: uppercase;">Ref:</span>
+            <span id="userWalletRefPoints">0 PTS</span>
+            <span style="opacity: 0.4;">|</span>
+            <span id="userWalletRefNaira" style="color: #4ade80;">₦0.00</span>
           </div>
         </div>
       </header>
@@ -256,15 +263,28 @@
           <div class="card" style="background: linear-gradient(135deg, var(--primary-blue), #1e3a8a); color: #ffffff; border: none; padding: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
               <div>
-                <div style="font-size: 0.82rem; opacity: 0.85; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Available Earnings</div>
+                <div style="font-size: 0.82rem; opacity: 0.85; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Total Available Balance</div>
                 <div style="font-size: 2.2rem; font-weight: 800; margin-top: 4px;" id="heroNairaBalance">₦0.00</div>
                 <div style="font-size: 0.92rem; opacity: 0.9; margin-top: 2px;">
-                  <strong id="heroPointsBalance">0</strong> Points Available
+                  <strong id="heroPointsBalance">0</strong> Total Points
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                  <span style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600;">
+                    Task: <strong id="heroTaskPoints">0 PTS</strong> (<span id="heroTaskNaira">₦0.00</span>)
+                  </span>
+                  <span style="background: rgba(34, 197, 94, 0.25); border: 1px solid rgba(34, 197, 94, 0.4); padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600;">
+                    Referral: <strong id="heroRefPoints">0 PTS</strong> (<span id="heroRefNaira">₦0.00</span>)
+                  </span>
                 </div>
               </div>
-              <button class="btn btn-primary" onclick="switchUserTab('withdrawals')" style="background-color: var(--primary-green); border-color: transparent;">
-                Withdraw Funds <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right preview-icon"><path d="m9 18 6-6-6-6"/></svg>
-              </button>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="btn btn-primary" onclick="switchUserTab('withdrawals'); selectWithdrawalMode('task');" style="background-color: var(--primary-green); border-color: transparent;">
+                  Withdraw Task Funds <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right preview-icon"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button class="btn btn-secondary" onclick="switchUserTab('withdrawals'); selectWithdrawalMode('referral');" style="background-color: rgba(255, 255, 255, 0.15); color: #ffffff; border-color: rgba(255, 255, 255, 0.3); font-size: 0.82rem;">
+                  Withdraw Referral Funds
+                </button>
+              </div>
             </div>
           </div>
 
@@ -452,13 +472,23 @@
             </div>
           </div>
 
-          <!-- Card 2: Withdraw Points -->
+          <!-- Card 2: Withdraw Points (Separated Task vs Referral) -->
           <div class="card" id="withdrawCard">
             <div class="card-header">
               <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 8px;">
-                <h2 class="card-title" style="margin-bottom: 0;">Withdraw Points</h2>
+                <h2 class="card-title" style="margin-bottom: 0;">Withdraw Earnings</h2>
                 <span class="badge badge-approved" id="wdrRateBadge">1 Point = ₦1.00</span>
               </div>
+            </div>
+
+            <!-- Withdrawal Category Switcher -->
+            <div style="display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+              <button type="button" class="btn btn-primary btn-sm" id="btnWdrTabTask" onclick="selectWithdrawalMode('task')" style="flex: 1; padding: 10px 14px; font-weight: 700;">
+                Task Earnings (Min ₦10,000)
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnWdrTabReferral" onclick="selectWithdrawalMode('referral')" style="flex: 1; padding: 10px 14px; font-weight: 700;">
+                Referral Earnings (Min ₦1,000)
+              </button>
             </div>
 
             <div id="withdrawalAlert" style="display: none;"></div>
@@ -475,21 +505,54 @@
               </div>
             </div>
 
-            <div class="grid-stats" style="margin-bottom: 20px;">
-              <div class="stat-box">
-                <div class="stat-label">Available Points</div>
-                <div class="stat-value" id="wdrPointsAvailable">0</div>
+            <!-- Dual Balance Cards Display -->
+            <div class="grid-stats" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px;">
+              <div class="stat-box" id="wdrTaskBalBox" style="border: 2px solid var(--primary-blue); cursor: pointer;" onclick="selectWithdrawalMode('task')">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span class="stat-label">Task Points Balance</span>
+                  <span class="badge badge-active" style="font-size: 0.65rem;">Task</span>
+                </div>
+                <div class="stat-value" id="wdrTaskPointsAvailable" style="color: var(--primary-blue);">0</div>
+                <div class="stat-sub" id="wdrTaskNairaAvailable">₦0.00 value</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; font-weight: 600;" id="wdrTaskMinNotice">
+                  Min withdrawal: ₦10,000 (10,000 PTS)
+                </div>
               </div>
-              <div class="stat-box">
-                <div class="stat-label">Naira Value</div>
-                <div class="stat-value" id="wdrNairaAvailable">₦0.00</div>
-                <div class="stat-sub" id="wdrMinNotice">Minimum withdrawal: ₦1,000</div>
+
+              <div class="stat-box" id="wdrRefBalBox" style="border: 1px solid var(--border-color); cursor: pointer;" onclick="selectWithdrawalMode('referral')">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span class="stat-label">Referral Points Balance</span>
+                  <span class="badge badge-approved" style="font-size: 0.65rem;">Referral</span>
+                </div>
+                <div class="stat-value" id="wdrRefPointsAvailable" style="color: var(--primary-green-dark);">0</div>
+                <div class="stat-sub" id="wdrRefNairaAvailable">₦0.00 value</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; font-weight: 600;" id="wdrRefMinNotice">
+                  Min withdrawal: ₦1,000 (1,000 PTS)
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Mode Indicator -->
+            <div style="background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <span style="font-size: 0.78rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.04em;">Selected Withdrawal Source:</span>
+                <div style="font-size: 1rem; font-weight: 800; color: var(--text-main);" id="wdrActiveSourceTitle">Task Earnings</div>
+              </div>
+              <div style="text-align: right;">
+                <span class="badge" id="wdrActiveSourceBadge" style="background: rgba(37, 99, 235, 0.12); color: var(--primary-blue); font-weight: 700;">Min: ₦10,000</span>
               </div>
             </div>
 
             <form id="withdrawalForm" onsubmit="handleWithdrawalRequest(event)">
+              <input type="hidden" id="wdrTypeInput" value="task">
+              
               <div class="form-group">
-                <label class="form-label" for="wdrPointsInput">Points to Withdraw</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="form-label" for="wdrPointsInput" style="margin-bottom: 0;">Points to Withdraw</label>
+                  <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="setWithdrawAllPoints()">
+                    Withdraw Maximum Available
+                  </button>
+                </div>
                 <input type="number" id="wdrPointsInput" required min="10" placeholder="Enter points amount" oninput="calculateWithdrawalNaira()">
                 <div class="form-helper" id="wdrCalculatedNaira">Estimated Payout: ₦0.00</div>
               </div>
@@ -498,7 +561,7 @@
               <div id="wdrPayoutTargetBox" style="margin-bottom: 20px; padding: 12px 14px; border-radius: 6px; font-size: 0.88rem;"></div>
 
               <button type="submit" class="btn btn-primary btn-block" id="btnSubmitWithdrawal" style="margin-top: 10px;">
-                Submit Withdrawal Request
+                Submit Task Withdrawal Request (₦10,000 Min)
               </button>
             </form>
           </div>
@@ -513,6 +576,7 @@
                 <thead>
                   <tr>
                     <th>Date</th>
+                    <th>Source Type</th>
                     <th>Points</th>
                     <th>Amount (₦)</th>
                     <th>Bank & Account</th>
@@ -580,9 +644,14 @@
               <div class="stat-value" id="refTotalInvited">0</div>
             </div>
             <div class="stat-box">
-              <div class="stat-label">Referral Points Earned</div>
-              <div class="stat-value" id="refTotalPoints">0 PTS</div>
+              <div class="stat-label">Available Referral Points</div>
+              <div class="stat-value" id="refTotalPoints" style="color: var(--primary-green-dark);">0 PTS</div>
               <div class="stat-sub" id="refNairaEarned">₦0.00 equivalent</div>
+              <div style="margin-top: 10px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="switchUserTab('withdrawals'); selectWithdrawalMode('referral');" style="width: 100%; font-size: 0.8rem;">
+                  Withdraw Referral Earnings (Min ₦1,000) &rarr;
+                </button>
+              </div>
             </div>
           </div>
 
