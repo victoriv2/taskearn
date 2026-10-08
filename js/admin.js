@@ -7,31 +7,40 @@
 let selectedUserForChat = null;
 let tempAdminChatImageData = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-  injectAdminSvgIcons();
-  initAdminDashboard();
-});
+function initAdmin() {
+  try { injectAdminSvgIcons(); } catch (e) {}
+  try { initAdminDashboard(); } catch (e) {}
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAdmin);
+} else {
+  initAdmin();
+}
 
 function injectAdminSvgIcons() {
+  const icons = window.ICONS || (typeof ICONS !== 'undefined' ? ICONS : null);
+  if (!icons) return;
+
   const setIcon = (id, svg) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = svg;
+    if (el && svg) el.innerHTML = svg;
   };
 
   // Desktop Sidebar Icons
-  setIcon('admDIconOverview', window.ICONS.tasks);
-  setIcon('admDIconTasks', window.ICONS.video);
-  setIcon('admDIconCreate', window.ICONS.plus);
-  setIcon('admDIconFinancial', window.ICONS.wallet);
-  setIcon('admDIconMore', window.ICONS.more);
-  setIcon('admSidebarLogoutIcon', window.ICONS.logout);
+  setIcon('admDIconOverview', icons.tasks);
+  setIcon('admDIconTasks', icons.video);
+  setIcon('admDIconCreate', icons.plus);
+  setIcon('admDIconFinancial', icons.wallet);
+  setIcon('admDIconMore', icons.more);
+  setIcon('admSidebarLogoutIcon', icons.logout);
 
   // Mobile Bottom Nav Icons
-  setIcon('mAdmIconOverview', window.ICONS.tasks);
-  setIcon('mAdmIconTasks', window.ICONS.video);
-  setIcon('mAdmIconCreate', window.ICONS.plus);
-  setIcon('mAdmIconFinancial', window.ICONS.wallet);
-  setIcon('mAdmIconMore', window.ICONS.more);
+  setIcon('mAdmIconOverview', icons.tasks);
+  setIcon('mAdmIconTasks', icons.video);
+  setIcon('mAdmIconCreate', icons.plus);
+  setIcon('mAdmIconFinancial', icons.wallet);
+  setIcon('mAdmIconMore', icons.more);
 
   // UI Icons
   setIcon('admSearchIcon', window.ICONS.search);

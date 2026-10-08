@@ -92,9 +92,14 @@ function checkPasswordCriteria(password, containerId) {
   }
 }
 
+window.ICONS = ICONS;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.initPasswordToggleIcons = initPasswordToggleIcons;
 window.checkPasswordCriteria = checkPasswordCriteria;
 
-document.addEventListener('DOMContentLoaded', initPasswordToggleIcons);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPasswordToggleIcons);
+} else {
+  initPasswordToggleIcons();
+}
 

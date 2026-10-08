@@ -11,12 +11,18 @@ let taskHasBeenOpened = false;
 let isTabActive = true;
 let tempChatImageData = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-  injectSvgIcons();
-  setupVisibilityListener();
-  handleUrlReferralParam();
-  handlePaystackCallbackParam();
-  checkAuth();
+function initApp() {
+  try { injectSvgIcons(); } catch (e) {}
+  try { setupVisibilityListener(); } catch (e) {}
+  try { handleUrlReferralParam(); } catch (e) {}
+  try { handlePaystackCallbackParam(); } catch (e) {}
+  try {
+    checkAuth();
+  } catch (err) {
+    console.error('TaskEarn init error:', err);
+    const authScreen = document.getElementById('authScreen');
+    if (authScreen) authScreen.style.display = 'flex';
+  }
 
   if (window.TaskEarnDB && window.TaskEarnDB.onSync) {
     window.TaskEarnDB.onSync((type) => {
@@ -52,7 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 function handleUrlReferralParam() {
   try {
@@ -117,37 +129,40 @@ function setupVisibilityListener() {
 }
 
 function injectSvgIcons() {
+  const icons = window.ICONS || (typeof ICONS !== 'undefined' ? ICONS : null);
+  if (!icons) return;
+
   const setIcon = (id, svg) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = svg;
+    if (el && svg) el.innerHTML = svg;
   };
 
   // Desktop Sidebar icons
-  setIcon('dIconTasks', window.ICONS.tasks);
-  setIcon('dIconWithdraw', window.ICONS.wallet);
-  setIcon('dIconChat', window.ICONS.chat);
-  setIcon('dIconReferral', window.ICONS.referral);
-  setIcon('dIconMore', window.ICONS.more);
-  setIcon('dIconLogout', window.ICONS.logout);
+  setIcon('dIconTasks', icons.tasks);
+  setIcon('dIconWithdraw', icons.wallet);
+  setIcon('dIconChat', icons.chat);
+  setIcon('dIconReferral', icons.referral);
+  setIcon('dIconMore', icons.more);
+  setIcon('dIconLogout', icons.logout);
 
   // Mobile Bottom Nav icons
-  setIcon('mIconTasks', window.ICONS.tasks);
-  setIcon('mIconWithdraw', window.ICONS.wallet);
-  setIcon('mIconChat', window.ICONS.chat);
-  setIcon('mIconReferral', window.ICONS.referral);
-  setIcon('mIconMore', window.ICONS.more);
+  setIcon('mIconTasks', icons.tasks);
+  setIcon('mIconWithdraw', icons.wallet);
+  setIcon('mIconChat', icons.chat);
+  setIcon('mIconReferral', icons.referral);
+  setIcon('mIconMore', icons.more);
 
   // Action icons
-  setIcon('iconSearch', window.ICONS.search);
-  setIcon('iconAttachImage', window.ICONS.image);
-  setIcon('iconSendMessage', window.ICONS.send);
-  setIcon('iconCopyCode', window.ICONS.copy);
-  setIcon('iconCopyLink', window.ICONS.copy);
-  setIcon('iconLogout', window.ICONS.logout);
-  setIcon('iconCloseModal', window.ICONS.close);
-  setIcon('iconPerformTask', window.ICONS.externalLink);
-  setIcon('iconConfirmTask', window.ICONS.check);
-  setIcon('iconVerifyLock', window.ICONS.lock);
+  setIcon('iconSearch', icons.search);
+  setIcon('iconAttachImage', icons.image);
+  setIcon('iconSendMessage', icons.send);
+  setIcon('iconCopyCode', icons.copy);
+  setIcon('iconCopyLink', icons.copy);
+  setIcon('iconLogout', icons.logout);
+  setIcon('iconCloseModal', icons.close);
+  setIcon('iconPerformTask', icons.externalLink);
+  setIcon('iconConfirmTask', icons.check);
+  setIcon('iconVerifyLock', icons.lock);
 
   if (window.initPasswordToggleIcons) {
     window.initPasswordToggleIcons();

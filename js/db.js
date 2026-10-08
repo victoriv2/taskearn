@@ -44,6 +44,7 @@ const DEFAULT_MESSAGES = [];
 // Data Store Class
 class DataStore {
   constructor() {
+    this._memStorage = {};
     this._syncListeners = [];
     this._pushTimeout = null;
     this._isPushing = false;
@@ -64,40 +65,71 @@ class DataStore {
     this.setupCloudSync();
   }
 
-  init() {
-    // One-time cache reset to force mobile browsers to clear stale empty local cache and pull fresh cloud data
-    if (!localStorage.getItem('taskearn_cloud_clean_v6')) {
-      try {
-        localStorage.removeItem(STORAGE_KEYS.USERS);
-        localStorage.removeItem(STORAGE_KEYS.PAYMENTS);
-        localStorage.removeItem(STORAGE_KEYS.TASKS);
-        localStorage.removeItem(STORAGE_KEYS.SUBMISSIONS);
-        localStorage.removeItem(STORAGE_KEYS.WITHDRAWALS);
-        localStorage.removeItem(STORAGE_KEYS.MESSAGES);
-        localStorage.setItem('taskearn_cloud_clean_v6', 'true');
-      } catch (e) {}
-    }
+  _storageGet(key) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const val = localStorage.getItem(key);
+        if (val !== null) return val;
+      }
+    } catch (e) {}
+    return this._memStorage ? (this._memStorage[key] ?? null) : null;
+  }
 
-    if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.TASKS)) {
-      localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify([]));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([]));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.SUBMISSIONS)) {
-      localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify([]));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.WITHDRAWALS)) {
-      localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify([]));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.PAYMENTS)) {
-      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([]));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.MESSAGES)) {
-      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify([]));
+  _storageSet(key, val) {
+    if (!this._memStorage) this._memStorage = {};
+    this._memStorage[key] = String(val);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, String(val));
+      }
+    } catch (e) {}
+  }
+
+  _storageRemove(key) {
+    if (this._memStorage) delete this._memStorage[key];
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+      }
+    } catch (e) {}
+  }
+
+  init() {
+    try {
+      // One-time cache reset to force mobile browsers to clear stale empty local cache and pull fresh cloud data
+      if (!this._storageGet('taskearn_cloud_clean_v6')) {
+        this._storageRemove(STORAGE_KEYS.USERS);
+        this._storageRemove(STORAGE_KEYS.PAYMENTS);
+        this._storageRemove(STORAGE_KEYS.TASKS);
+        this._storageRemove(STORAGE_KEYS.SUBMISSIONS);
+        this._storageRemove(STORAGE_KEYS.WITHDRAWALS);
+        this._storageRemove(STORAGE_KEYS.MESSAGES);
+        this._storageSet('taskearn_cloud_clean_v6', 'true');
+      }
+
+      if (!this._storageGet(STORAGE_KEYS.SETTINGS)) {
+        this._storageSet(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
+      }
+      if (!this._storageGet(STORAGE_KEYS.TASKS)) {
+        this._storageSet(STORAGE_KEYS.TASKS, JSON.stringify([]));
+      }
+      if (!this._storageGet(STORAGE_KEYS.USERS)) {
+        this._storageSet(STORAGE_KEYS.USERS, JSON.stringify([]));
+      }
+      if (!this._storageGet(STORAGE_KEYS.SUBMISSIONS)) {
+        this._storageSet(STORAGE_KEYS.SUBMISSIONS, JSON.stringify([]));
+      }
+      if (!this._storageGet(STORAGE_KEYS.WITHDRAWALS)) {
+        this._storageSet(STORAGE_KEYS.WITHDRAWALS, JSON.stringify([]));
+      }
+      if (!this._storageGet(STORAGE_KEYS.PAYMENTS)) {
+        this._storageSet(STORAGE_KEYS.PAYMENTS, JSON.stringify([]));
+      }
+      if (!this._storageGet(STORAGE_KEYS.MESSAGES)) {
+        this._storageSet(STORAGE_KEYS.MESSAGES, JSON.stringify([]));
+      }
+    } catch (err) {
+      console.warn('Storage init fallback:', err);
     }
   }
 
@@ -350,13 +382,13 @@ class DataStore {
         }
 
         // Save merged state back locally
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
-        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(mergedTasks));
-        localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(mergedSubs));
-        localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify(mergedWdr));
-        localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(mergedPay));
-        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(mergedMsg));
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(mergedSettings));
+        this._storageSet(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
+        this._storageSet(STORAGE_KEYS.TASKS, JSON.stringify(mergedTasks));
+        this._storageSet(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(mergedSubs));
+        this._storageSet(STORAGE_KEYS.WITHDRAWALS, JSON.stringify(mergedWdr));
+        this._storageSet(STORAGE_KEYS.PAYMENTS, JSON.stringify(mergedPay));
+        this._storageSet(STORAGE_KEYS.MESSAGES, JSON.stringify(mergedMsg));
+        this._storageSet(STORAGE_KEYS.SETTINGS, JSON.stringify(mergedSettings));
 
         const payload = {
           settings: mergedSettings,
@@ -542,13 +574,13 @@ class DataStore {
             ? { ...localSettings, ...record.settings }
             : localSettings;
 
-          const currentUsersStr = localStorage.getItem(STORAGE_KEYS.USERS) || '[]';
-          const currentTasksStr = localStorage.getItem(STORAGE_KEYS.TASKS) || '[]';
-          const currentSubsStr = localStorage.getItem(STORAGE_KEYS.SUBMISSIONS) || '[]';
-          const currentWdrStr = localStorage.getItem(STORAGE_KEYS.WITHDRAWALS) || '[]';
-          const currentPayStr = localStorage.getItem(STORAGE_KEYS.PAYMENTS) || '[]';
-          const currentMsgStr = localStorage.getItem(STORAGE_KEYS.MESSAGES) || '[]';
-          const currentSettingsStr = localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}';
+          const currentUsersStr = this._storageGet(STORAGE_KEYS.USERS) || '[]';
+          const currentTasksStr = this._storageGet(STORAGE_KEYS.TASKS) || '[]';
+          const currentSubsStr = this._storageGet(STORAGE_KEYS.SUBMISSIONS) || '[]';
+          const currentWdrStr = this._storageGet(STORAGE_KEYS.WITHDRAWALS) || '[]';
+          const currentPayStr = this._storageGet(STORAGE_KEYS.PAYMENTS) || '[]';
+          const currentMsgStr = this._storageGet(STORAGE_KEYS.MESSAGES) || '[]';
+          const currentSettingsStr = this._storageGet(STORAGE_KEYS.SETTINGS) || '{}';
 
           const newUsersStr = JSON.stringify(mergedUsers);
           const newTasksStr = JSON.stringify(mergedTasks);
@@ -560,31 +592,31 @@ class DataStore {
 
           const changedKeys = [];
           if (newUsersStr !== currentUsersStr) {
-            localStorage.setItem(STORAGE_KEYS.USERS, newUsersStr);
+            this._storageSet(STORAGE_KEYS.USERS, newUsersStr);
             changedKeys.push('users');
           }
           if (newTasksStr !== currentTasksStr) {
-            localStorage.setItem(STORAGE_KEYS.TASKS, newTasksStr);
+            this._storageSet(STORAGE_KEYS.TASKS, newTasksStr);
             changedKeys.push('tasks');
           }
           if (newSubsStr !== currentSubsStr) {
-            localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, newSubsStr);
+            this._storageSet(STORAGE_KEYS.SUBMISSIONS, newSubsStr);
             changedKeys.push('submissions');
           }
           if (newWdrStr !== currentWdrStr) {
-            localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, newWdrStr);
+            this._storageSet(STORAGE_KEYS.WITHDRAWALS, newWdrStr);
             changedKeys.push('withdrawals');
           }
           if (newPayStr !== currentPayStr) {
-            localStorage.setItem(STORAGE_KEYS.PAYMENTS, newPayStr);
+            this._storageSet(STORAGE_KEYS.PAYMENTS, newPayStr);
             changedKeys.push('payments');
           }
           if (newMsgStr !== currentMsgStr) {
-            localStorage.setItem(STORAGE_KEYS.MESSAGES, newMsgStr);
+            this._storageSet(STORAGE_KEYS.MESSAGES, newMsgStr);
             changedKeys.push('messages');
           }
           if (newSettingsStr !== currentSettingsStr) {
-            localStorage.setItem(STORAGE_KEYS.SETTINGS, newSettingsStr);
+            this._storageSet(STORAGE_KEYS.SETTINGS, newSettingsStr);
             changedKeys.push('settings');
           }
 
@@ -637,38 +669,50 @@ class DataStore {
 
   // --- Helper getters/setters ---
   _get(key) {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
+    try {
+      const data = this._storageGet(key);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
   }
 
   _set(key, val) {
-    localStorage.setItem(key, JSON.stringify(val));
+    try {
+      this._storageSet(key, JSON.stringify(val));
+    } catch (e) {}
     this.scheduleCloudPush();
   }
 
   // =================== SETTINGS ===================
   getSettings() {
-    const s = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    const parsed = s ? JSON.parse(s) : {};
-    return {
-      ...DEFAULT_SETTINGS,
-      ...parsed,
-      paystackPublicKey: (parsed.paystackPublicKey || '').trim() || DEFAULT_SETTINGS.paystackPublicKey,
-      paystackSecretKey: (parsed.paystackSecretKey || '').trim() || DEFAULT_SETTINGS.paystackSecretKey
-    };
+    try {
+      const s = this._storageGet(STORAGE_KEYS.SETTINGS);
+      const parsed = s ? JSON.parse(s) : {};
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        paystackPublicKey: (parsed.paystackPublicKey || '').trim() || DEFAULT_SETTINGS.paystackPublicKey,
+        paystackSecretKey: (parsed.paystackSecretKey || '').trim() || DEFAULT_SETTINGS.paystackSecretKey
+      };
+    } catch (e) {
+      return { ...DEFAULT_SETTINGS };
+    }
   }
 
   updateSettings(newSettings) {
     const current = this.getSettings();
     const updated = { ...current, ...newSettings };
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+    try {
+      this._storageSet(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+    } catch (e) {}
     this.scheduleCloudPush();
     return updated;
   }
 
   // =================== ADMIN AUTH ===================
   isAdminLoggedIn() {
-    return localStorage.getItem(STORAGE_KEYS.ADMIN_SESSION) === 'true';
+    return this._storageGet(STORAGE_KEYS.ADMIN_SESSION) === 'true';
   }
 
   loginAdmin(identifier, password) {
@@ -682,14 +726,14 @@ class DataStore {
     const isPhone = this.isPhoneMatch(cleanId, validPhone);
 
     if ((isEmail || isPhone) && password === validPassword) {
-      localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, 'true');
+      this._storageSet(STORAGE_KEYS.ADMIN_SESSION, 'true');
       return true;
     }
     throw new Error('Invalid administrator email/phone or password.');
   }
 
   logoutAdmin() {
-    localStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION);
+    this._storageRemove(STORAGE_KEYS.ADMIN_SESSION);
   }
 
   // =================== USERS & AUTH ===================
@@ -1065,28 +1109,36 @@ class DataStore {
   }
 
   getCurrentUser() {
-    const u = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    if (!u) return null;
-    const user = JSON.parse(u);
-    // Keep in sync with latest db entry
-    const fresh = this.getUserById(user.id);
-    if (fresh) {
-      this.setCurrentUser(fresh);
-      return fresh;
+    try {
+      const u = this._storageGet(STORAGE_KEYS.CURRENT_USER);
+      if (!u) return null;
+      const user = JSON.parse(u);
+      // Keep in sync with latest db entry
+      const fresh = this.getUserById(user.id);
+      if (fresh) {
+        this.setCurrentUser(fresh);
+        return fresh;
+      }
+      return user;
+    } catch (e) {
+      return null;
     }
-    return user;
   }
 
   setCurrentUser(user) {
-    if (!user) {
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    } else {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-    }
+    try {
+      if (!user) {
+        this._storageRemove(STORAGE_KEYS.CURRENT_USER);
+      } else {
+        this._storageSet(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+      }
+    } catch (e) {}
   }
 
   logoutUser() {
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    try {
+      this._storageRemove(STORAGE_KEYS.CURRENT_USER);
+    } catch (e) {}
   }
 
   updateUser(id, updates) {
